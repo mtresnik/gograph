@@ -1,4 +1,4 @@
-package gograph
+package gomaze
 
 const (
 	DIRECTION_RIGHT = 0
@@ -13,22 +13,18 @@ type MazeCoordinate interface {
 }
 
 func HashMazeCoordinate(c MazeCoordinate) int64 {
-	return int64(c.GetRow()*31 + c.GetCol())
+	return int64(c.GetRow())<<32 | int64(c.GetCol())
 }
 
 func EqualsMazeCoordinate(a, b MazeCoordinate) bool {
 	return HashMazeCoordinate(a) == HashMazeCoordinate(b)
 }
 
-type MazeBorder struct {
-	IsWall bool
-}
-
 type MazeCell struct {
-	Row  int
-	Col  int
-	Left MazeBorder
-	Up   MazeBorder
+	Row        int
+	Col        int
+	LeftIsWall bool
+	UpIsWall   bool
 }
 
 func (m MazeCell) GetRow() int {
@@ -43,7 +39,7 @@ type MazeConnection struct {
 	From      MazeCoordinate
 	To        MazeCoordinate
 	Direction int
-	Wall      MazeBorder
+	IsWall    bool
 }
 
 func (m MazeConnection) Equals(other MazeConnection) bool {
@@ -69,6 +65,14 @@ func NewMaze(rows, cols int) Maze {
 	cells := make([][]MazeCell, rows)
 	for i := 0; i < rows; i++ {
 		cells[i] = make([]MazeCell, cols)
+		for j := 0; j < cols; j++ {
+			cells[i][j] = MazeCell{
+				Row:        i,
+				Col:        j,
+				LeftIsWall: true,
+				UpIsWall:   true,
+			}
+		}
 	}
 	return Maze{
 		Rows:  rows,
@@ -89,8 +93,8 @@ func (m Maze) Contains(row, col int) bool {
 	return row >= 0 && row < m.Rows && col >= 0 && col < m.Cols
 }
 
-func (m Maze) GetCell(row, col int) MazeCell {
-	return m.Cells[row][col]
+func (m Maze) GetCell(row, col int) *MazeCell {
+	return &m.Cells[row][col]
 }
 
 func (m Maze) GetIfValid(row, col int) *MazeCell {
@@ -195,11 +199,11 @@ func (m Maze) GetConnection(row, col int, direction int) *MazeConnection {
 		From:      *from,
 		To:        *to,
 		Direction: direction,
-		Wall:      *wall,
+		IsWall:    *wall,
 	}
 }
 
-func (m Maze) GetWall(row, col int, direction int) *MazeBorder {
+func (m Maze) GetWall(row, col int, direction int) *bool {
 	switch direction {
 	case DIRECTION_RIGHT:
 		return m.GetRightWall(row, col)
@@ -210,92 +214,96 @@ func (m Maze) GetWall(row, col int, direction int) *MazeBorder {
 	case DIRECTION_DOWN:
 		return m.GetDownWall(row, col)
 	default:
-		return nil
+		panic("Invalid direction")
 	}
 }
 
-func (m Maze) GetRightWall(row, col int) *MazeBorder {
-	if !m.Contains(row, col) {
+func (m Maze) GetRightWall(row, col int) *bool {
+	if !m.Contains(row, col+1) {
 		return nil
 	}
 	rightCell := m.GetRight(row, col)
 	if rightCell == nil {
-		return &MazeBorder{IsWall: true}
+		return nil
 	}
-	return &rightCell.Left
+	return &rightCell.LeftIsWall
 }
 
-func (m Maze) GetUpWall(row, col int) *MazeBorder {
+func (m Maze) GetUpWall(row, col int) *bool {
 	if !m.Contains(row, col) {
 		return nil
 	}
 	cell := m.GetCell(row, col)
-	return &cell.Up
+	return &cell.UpIsWall
 }
 
-func (m Maze) GetLeftWall(row, col int) *MazeBorder {
+func (m Maze) GetLeftWall(row, col int) *bool {
 	if !m.Contains(row, col) {
 		return nil
 	}
 	cell := m.GetCell(row, col)
-	return &cell.Left
+	return &cell.LeftIsWall
 }
 
-func (m Maze) GetDownWall(row, col int) *MazeBorder {
-	if !m.Contains(row, col) {
+func (m Maze) GetDownWall(row, col int) *bool {
+	if !m.Contains(row+1, col) {
 		return nil
 	}
 	cell := m.GetDown(row, col)
 	if cell == nil {
 		return nil
 	}
-	return &cell.Up
+	return &cell.UpIsWall
 }
 
-func (m Maze) SetWall(row, col int, direction int, border MazeBorder) {
+func (m Maze) SetWall(row, col int, direction int, border bool) {
 	if !m.Contains(row, col) {
 		return
 	}
 	switch direction {
 	case DIRECTION_RIGHT:
 		m.SetRightWall(row, col, border)
+		return
 	case DIRECTION_UP:
 		m.SetUpWall(row, col, border)
+		return
 	case DIRECTION_LEFT:
 		m.SetLeftWall(row, col, border)
+		return
 	case DIRECTION_DOWN:
 		m.SetDownWall(row, col, border)
+		return
 	}
 }
 
-func (m Maze) SetRightWall(row, col int, border MazeBorder) {
+func (m Maze) SetRightWall(row, col int, border bool) {
 	if !m.Contains(row, col+1) {
 		return
 	}
 	cell := m.GetCell(row, col+1)
-	cell.Left = border
+	cell.LeftIsWall = border
 }
 
-func (m Maze) SetUpWall(row, col int, border MazeBorder) {
+func (m Maze) SetUpWall(row, col int, border bool) {
 	if !m.Contains(row, col) {
 		return
 	}
 	cell := m.GetCell(row, col)
-	cell.Up = border
+	cell.UpIsWall = border
 }
 
-func (m Maze) SetLeftWall(row, col int, border MazeBorder) {
+func (m Maze) SetLeftWall(row, col int, border bool) {
 	if !m.Contains(row, col) {
 		return
 	}
 	cell := m.GetCell(row, col)
-	cell.Left = border
+	cell.LeftIsWall = border
 }
 
-func (m Maze) SetDownWall(row, col int, border MazeBorder) {
+func (m Maze) SetDownWall(row, col int, border bool) {
 	if !m.Contains(row+1, col) {
 		return
 	}
 	cell := m.GetCell(row+1, col)
-	cell.Up = border
+	cell.UpIsWall = border
 }

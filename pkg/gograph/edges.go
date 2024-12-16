@@ -20,6 +20,10 @@ type Edge interface {
 	String() string
 }
 
+type EdgeListener interface {
+	Visit(e Edge)
+}
+
 func EdgesToString(edges ...Edge) string {
 	retArray := make([]string, len(edges))
 	for i, edge := range edges {

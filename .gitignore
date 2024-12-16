@@ -9,6 +9,9 @@
 *.dylib
 *.iml
 
+# UI output
+*.gif
+
 # Test binary, built with `go test -c`
 *.test
 

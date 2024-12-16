@@ -1,4 +1,4 @@
-package gograph
+package gomaze
 
 import (
 	"github.com/mtresnik/goutils/pkg/goutils"
@@ -6,17 +6,51 @@ import (
 	"time"
 )
 
+type MazeGeneratorRequest struct {
+	Rows, Cols          int
+	MazeUpdateListeners *[]MazeUpdateListener
+}
+
+type MazeUpdateListener interface {
+	OnMazeUpdated(response MazeGeneratorResponse)
+}
+
+func VisitMazeUpdateListeners(listeners []MazeUpdateListener, response MazeGeneratorResponse) {
+	for _, listener := range listeners {
+		listener.OnMazeUpdated(response)
+	}
+}
+
+type MazeGeneratorResponse struct {
+	Maze     Maze
+	Visited  map[int64]bool
+	Complete bool
+}
+
+func NewMazeGeneratorRequest(rows, cols int) MazeGeneratorRequest {
+	return MazeGeneratorRequest{
+		Rows: rows,
+		Cols: cols,
+	}
+}
+
 type MazeGenerator interface {
-	Build(rows, cols int) Maze
+	Build(request MazeGeneratorRequest) MazeGeneratorResponse
 }
 
 type AldousBroderMazeGenerator struct{}
 
-func (a AldousBroderMazeGenerator) Build(rows, cols int) Maze {
-	maze := NewMaze(rows, cols)
+func (a AldousBroderMazeGenerator) Build(request MazeGeneratorRequest) MazeGeneratorResponse {
+	maze := NewMaze(request.Rows, request.Cols)
+
+	mazeUpdateListeners := make([]MazeUpdateListener, 0)
+	if request.MazeUpdateListeners != nil {
+		mazeUpdateListeners = *request.MazeUpdateListeners
+	}
 
 	visitedHashes := make(map[int64]bool)
 	visitedCoordinates := make([]MazeCoordinate, 0)
+	VisitMazeUpdateListeners(mazeUpdateListeners, MazeGeneratorResponse{maze, visitedHashes, false})
 
 	allCells := maze.Flatten()
 	random := rand.New(rand.NewSource(time.Now().UnixNano()))
@@ -24,12 +58,14 @@ func (a AldousBroderMazeGenerator) Build(rows, cols int) Maze {
 		allCells[i], allCells[j] = allCells[j], allCells[i]
 	})
 	randomIndex := random.Intn(len(allCells))
-	startCell := allCells[randomIndex]
+	startCell := &allCells[randomIndex]
 
 	visitedHashes[HashMazeCoordinate(startCell)] = true
 	visitedCoordinates = append(visitedCoordinates, startCell)
 
-	numCells := len(allCells)
+	VisitMazeUpdateListeners(mazeUpdateListeners, MazeGeneratorResponse{maze, visitedHashes, false})
+
+	numCells := maze.Rows * maze.Cols
 	currentCell := startCell
 	for len(visitedHashes) != numCells {
 		neighborConnections := maze.GetConnections(currentCell.Row, currentCell.Col)
@@ -40,7 +76,8 @@ func (a AldousBroderMazeGenerator) Build(rows, cols int) Maze {
 				filteredConnections = append(filteredConnections, connection)
 			}
 		}
-		if len(filteredConnections) == 0 {
+		neighborConnections = filteredConnections
+		if len(neighborConnections) == 0 {
 			// Attempt to iterate over visited coordinates to find an open path somewhere
 			neighborConnections = make([]MazeConnection, 0)
 			for _, mazeCoordinate := range visitedCoordinates {
@@ -62,20 +99,32 @@ func (a AldousBroderMazeGenerator) Build(rows, cols int) Maze {
 					}
 				}
 				if found == nil {
-					return maze
+					VisitMazeUpdateListeners(mazeUpdateListeners, MazeGeneratorResponse{maze, visitedHashes, true})
+					return MazeGeneratorResponse{maze, visitedHashes, true}
 				}
-				currentCell = *found
+				currentCell = found
 				visitedHashes[HashMazeCoordinate(currentCell)] = true
 				visitedCoordinates = append(visitedCoordinates, currentCell)
+
+				VisitMazeUpdateListeners(mazeUpdateListeners, MazeGeneratorResponse{maze, visitedHashes, false})
 				continue
 			}
 		}
 		randomIndex = random.Intn(len(neighborConnections))
 		currConnection := neighborConnections[randomIndex]
-		maze.SetWall(currConnection.From.GetRow(), currConnection.From.GetCol(), currConnection.Direction, MazeBorder{IsWall: false})
+		maze.SetWall(currConnection.From.GetRow(), currConnection.From.GetCol(), currConnection.Direction, false)
+		wall := maze.GetWall(currConnection.From.GetRow(), currConnection.From.GetCol(), currConnection.Direction)
+		if wall == nil {
+			panic("Wall is nil")
+		}
+		if *wall {
+			panic("Connection is a wall")
+		}
 		visitedHashes[HashMazeCoordinate(currConnection.To)] = true
 		visitedCoordinates = append(visitedCoordinates, currConnection.To)
 		currentCell = maze.GetCell(currConnection.To.GetRow(), currConnection.To.GetCol())
+		VisitMazeUpdateListeners(mazeUpdateListeners, MazeGeneratorResponse{maze, visitedHashes, false})
 	}
-	return maze
+	VisitMazeUpdateListeners(mazeUpdateListeners, MazeGeneratorResponse{maze, visitedHashes, true})
+	return MazeGeneratorResponse{maze, visitedHashes, true}
 }

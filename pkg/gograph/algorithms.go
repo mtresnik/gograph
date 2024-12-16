@@ -3,18 +3,19 @@ package gograph
 import (
 	"errors"
 	"github.com/mtresnik/goutils/pkg/goutils"
+	"maps"
 )
 
 type RoutingRequest struct {
 	Start             Vertex
 	Destination       Vertex
-	Constraints       *[]Constraint
+	Constraints       *map[string][]Constraint
 	MultiCostFunction *MultiCostFunction
-	CostFunctions     *[]CostFunction
+	CostFunctions     *map[string]CostFunction
 }
 
 type RoutingResponse struct {
-	Costs   []CostEntry
+	Costs   map[string]CostEntry
 	Path    []Edge
 	Visited map[int64]bool
 }
@@ -26,18 +27,18 @@ type RoutingAlgorithm interface {
 }
 
 type BFS struct {
-	VertexVisitors []VertexVisitor
-	EdgeVisitors   []EdgeVisitor
+	VertexListeners []VertexListener
+	EdgeListeners   []EdgeListener
 }
 
 func (b BFS) VisitVertex(vertex Vertex) {
-	for _, visitor := range b.VertexVisitors {
+	for _, visitor := range b.VertexListeners {
 		visitor.Visit(vertex)
 	}
 }
 
 func (b BFS) VisitEdge(edge Edge) {
-	for _, visitor := range b.EdgeVisitors {
+	for _, visitor := range b.EdgeListeners {
 		visitor.Visit(edge)
 	}
 }
@@ -56,16 +57,15 @@ func (b BFS) Evaluate(parameters RoutingRequest) (RoutingResponse, *error) {
 	start := parameters.Start
 	destination := parameters.Destination
 	constraints := parameters.Constraints
-	var costFunctions []CostFunction
+	var costFunctions map[string]CostFunction
 	if parameters.CostFunctions != nil {
 		costFunctions = *parameters.CostFunctions
 	} else {
-		costFunctions = []CostFunction{EuclideanDistanceCostFunction{}}
+		costFunctions = map[string]CostFunction{COST_TYPE_DISTANCE: EuclideanDistanceCostFunction{}}
 	}
-	initialCosts := make([]CostEntry, len(costFunctions))
-	for i, function := range costFunctions {
-		initialCosts[i] = CostEntry{
-			Type:        function.GetType(),
+	initialCosts := map[string]CostEntry{}
+	for key, _ := range costFunctions {
+		initialCosts[key] = CostEntry{
 			Accumulated: 0,
 			Current:     0,
 			Total:       0,
@@ -85,26 +85,35 @@ func (b BFS) Evaluate(parameters RoutingRequest) (RoutingResponse, *error) {
 		for _, edge := range curr.Inner.GetEdges() {
 			toVertex := ToVertex(edge.To())
 			hashOrId := HashOrId(toVertex)
-			costs := make([]CostEntry, len(costFunctions))
-			for i, costFunction := range costFunctions {
-				cost := costFunction.Eval(curr, toVertex)
-				costs[i] = CostEntry{
-					Type:        costFunction.GetType(),
-					Accumulated: curr.Costs[i].Total,
-					Current:     cost,
-					Total:       curr.Costs[i].Total + cost,
+			nextCosts := map[string]CostEntry{}
+			for key, costFunction := range costFunctions {
+				nextCostByKey := costFunction.Eval(curr, toVertex)
+				nextCosts[key] = CostEntry{
+					Accumulated: curr.Costs[key].Total,
+					Current:     nextCostByKey,
+					Total:       curr.Costs[key].Total + nextCostByKey,
 				}
 			}
 			if !goutils.SetContains(visited, hashOrId) {
-				nextWrapper := NewVertexWrapper(toVertex, costs)
+				successor := NewVertexWrapper(toVertex, nextCosts)
 				pass := true
 				if constraints != nil {
-					pass = CheckAllConstraints(curr, costs, *constraints...)
+					keys := maps.Keys(*constraints)
+					for key := range keys {
+						_, constraintsExist := (*constraints)[key]
+						currCost, costExist := nextCosts[key]
+						if constraintsExist && costExist {
+							pass = CheckAllConstraints(curr, currCost, key, *constraints)
+							if !pass {
+								break
+							}
+						}
+					}
 				}
 				if pass {
 					b.VisitEdge(edge)
-					nextWrapper.Previous = &curr
-					queue = append(queue, nextWrapper)
+					successor.Previous = &curr
+					queue = append(queue, successor)
 					visited[hashOrId] = true
 					b.VisitVertex(toVertex)
 				}

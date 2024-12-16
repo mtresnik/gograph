@@ -18,6 +18,10 @@ type Vertex interface {
 	GetEdge(to Vertex) Edge
 }
 
+type VertexListener interface {
+	Visit(v Vertex)
+}
+
 func getEdge(from Vertex, to Vertex) Edge {
 	for _, edge := range from.GetEdges() {
 		if ToVertex(edge.To()).Hash() == to.Hash() {
@@ -127,10 +131,10 @@ type VertexWrapper struct {
 	Previous *VertexWrapper
 	Inner    Vertex
 	Next     *VertexWrapper
-	Costs    []CostEntry
+	Costs    map[string]CostEntry
 }
 
-func NewVertexWrapper(inner Vertex, costs []CostEntry) VertexWrapper {
+func NewVertexWrapper(inner Vertex, costs map[string]CostEntry) VertexWrapper {
 	return VertexWrapper{Inner: inner, Costs: costs}
 }
 
