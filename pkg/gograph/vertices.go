@@ -14,16 +14,66 @@ type Vertex interface {
 	W() float64
 	Id() int64
 	GetEdges() []Edge
+	Hash() int64
+	GetEdge(to Vertex) Edge
+}
+
+func getEdge(from Vertex, to Vertex) Edge {
+	for _, edge := range from.GetEdges() {
+		if ToVertex(edge.To()).Hash() == to.Hash() {
+			return edge
+		}
+	}
+	return SimpleEdge{
+		from:     from,
+		to:       to,
+		id:       -1,
+		distance: gomath.EuclideanDistance{}.Eval(from, to),
+	}
+}
+
+func VertexFromSpatial(spatial gomath.Spatial) Vertex {
+	return SimpleVertex{Spatial: spatial, Edges: []Edge{}, id: -1, hash: -1}
+}
+
+func ToVertex(vertex interface{}) Vertex {
+	if v, ok := vertex.(Vertex); ok {
+		return v
+	}
+	if s, ok := vertex.(gomath.Spatial); ok {
+		return VertexFromSpatial(s)
+	}
+	panic("Cannot cast to Vertex")
+}
+
+func HashOrId(vertex Vertex) int64 {
+	if vertex.Id() >= 0 {
+		return vertex.Id()
+	}
+	return HashVertex(vertex)
+}
+
+func HashVertex(vertex Vertex) int64 {
+	retHash := int64(1)
+	for _, value := range vertex.GetValues() {
+		retHash = retHash*31 + int64(value)
+	}
+	return retHash
 }
 
 type SimpleVertex struct {
 	Spatial gomath.Spatial
 	Edges   []Edge
 	id      int64
+	hash    int64
 }
 
 func NewVertex(spatial gomath.Spatial, edges ...Edge) SimpleVertex {
-	return SimpleVertex{Spatial: spatial, Edges: edges, id: -1}
+	return SimpleVertex{Spatial: spatial, Edges: edges, id: -1, hash: -1}
+}
+
+func (v SimpleVertex) GetEdge(to Vertex) Edge {
+	return getEdge(v, to)
 }
 
 func (v SimpleVertex) DistanceTo(other SimpleVertex, distanceFunction ...gomath.DistanceFunction) float64 {
@@ -66,14 +116,21 @@ func (v SimpleVertex) GetEdges() []Edge {
 	return v.Edges
 }
 
+func (v SimpleVertex) Hash() int64 {
+	if v.hash == -1 {
+		v.hash = HashVertex(v)
+	}
+	return v.hash
+}
+
 type VertexWrapper struct {
 	Previous *VertexWrapper
 	Inner    Vertex
 	Next     *VertexWrapper
-	Costs    map[string]CostEntry
+	Costs    []CostEntry
 }
 
-func NewVertexWrapper(inner Vertex, costs map[string]CostEntry) VertexWrapper {
+func NewVertexWrapper(inner Vertex, costs []CostEntry) VertexWrapper {
 	return VertexWrapper{Inner: inner, Costs: costs}
 }
 
@@ -111,4 +168,12 @@ func (v VertexWrapper) Id() int64 {
 
 func (v VertexWrapper) GetEdges() []Edge {
 	return v.Inner.GetEdges()
+}
+
+func (v VertexWrapper) Hash() int64 {
+	return v.Inner.Hash()
+}
+
+func (v VertexWrapper) GetEdge(to Vertex) Edge {
+	return v.Inner.GetEdge(to)
 }
