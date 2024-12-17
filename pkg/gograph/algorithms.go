@@ -11,12 +11,13 @@ type RoutingRequest struct {
 	Destination       Vertex
 	Constraints       *map[string][]Constraint
 	MultiCostFunction *MultiCostFunction
+	CostCombiner      *CostCombiner
 	CostFunctions     *map[string]CostFunction
 }
 
 type RoutingResponse struct {
 	Costs   map[string]CostEntry
-	Path    []Edge
+	Path    Path
 	Visited map[int64]bool
 }
 
@@ -79,12 +80,13 @@ func (b BFS) Evaluate(parameters RoutingRequest) (RoutingResponse, *error) {
 	var curr = startWrapper
 	for len(queue) > 0 {
 		curr = queue[0]
+		queue = queue[1:]
 		if curr.Hash() == destination.Hash() {
 			break
 		}
 		for _, edge := range curr.Inner.GetEdges() {
 			toVertex := ToVertex(edge.To())
-			hashOrId := HashOrId(toVertex)
+			hashOrId := VertexHashOrId(toVertex)
 			nextCosts := map[string]CostEntry{}
 			for key, costFunction := range costFunctions {
 				nextCostByKey := costFunction.Eval(curr, toVertex)
@@ -125,9 +127,16 @@ func (b BFS) Evaluate(parameters RoutingRequest) (RoutingResponse, *error) {
 		}
 	}
 	edges := Backtrack(curr)
+
+	costCombiner := *parameters.CostCombiner
+	if costCombiner == nil {
+		costCombiner = MultiplicativeCostCombiner{}
+	}
+
+	path := NewSimplePath(edges, costCombiner.Calculate(curr.Costs))
 	return RoutingResponse{
 		Costs:   curr.Costs,
-		Path:    edges,
+		Path:    path,
 		Visited: visited,
 	}, nil
 }

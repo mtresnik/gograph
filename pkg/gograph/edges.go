@@ -3,6 +3,7 @@ package gograph
 import (
 	"fmt"
 	"github.com/mtresnik/gomath/pkg/gomath"
+	"hash/fnv"
 	"math"
 	"strings"
 )
@@ -18,6 +19,14 @@ type Edge interface {
 	Split(size int, distanceFunction ...gomath.DistanceFunction) []gomath.Segment
 	Id() int64
 	String() string
+	Hash() int64
+}
+
+func EdgeHashOrId(e Edge) int64 {
+	if e.Id() != -1 {
+		return e.Id()
+	}
+	return e.Hash()
 }
 
 type EdgeListener interface {
@@ -61,9 +70,9 @@ func NewEdge(points ...gomath.Spatial) Edge {
 		panic("At least two points are required to create an edge")
 	}
 	if len(points) == 2 {
-		return SimpleEdge{points[0], points[1], -1, -1}
+		return SimpleEdge{points[0], points[1], -1, -1, -1}
 	}
-	return PolyEdge{points, -1, -1}
+	return PolyEdge{points, -1, -1, -1}
 }
 
 func CastToEdges(segments ...gomath.Segment) []Edge {
@@ -102,6 +111,11 @@ type SimpleEdge struct {
 	to       gomath.Spatial
 	id       int64
 	distance float64
+	hash     int64
+}
+
+func NewSimpleEdge(from gomath.Spatial, to gomath.Spatial, id int64) SimpleEdge {
+	return SimpleEdge{from, to, id, -1.0, -1}
 }
 
 func (e SimpleEdge) From() gomath.Spatial {
@@ -113,7 +127,7 @@ func (e SimpleEdge) To() gomath.Spatial {
 }
 
 func (e SimpleEdge) Reverse() Edge {
-	return SimpleEdge{e.to, e.from, e.id, -1.0}
+	return SimpleEdge{e.to, e.from, e.id, -1.0, -1}
 }
 
 func (e SimpleEdge) Id() int64 {
@@ -156,7 +170,7 @@ func (e SimpleEdge) Split(size int, distanceFunction ...gomath.DistanceFunction)
 	for i := 0; i < size; i++ {
 		scalar := float64(i+1) * delta
 		current := e.Scale(scalar, distanceFunction...)
-		retArray[i] = SimpleEdge{previous, current, -1, -1}
+		retArray[i] = SimpleEdge{previous, current, -1, -1, -1}
 		previous = current
 	}
 	return retArray
@@ -174,7 +188,7 @@ func (e SimpleEdge) ToPolyEdge(size int) PolyEdge {
 		panic("At least one edge is required to create a poly edge")
 	}
 	if size == 1 {
-		return PolyEdge{[]gomath.Spatial{e.From(), e.To()}, e.Id(), e.distance}
+		return PolyEdge{[]gomath.Spatial{e.From(), e.To()}, e.Id(), e.distance, -1}
 	}
 	split := e.Split(size) // use Euclidean distance
 	contracted := Contract(split[0], split[1:]...)
@@ -183,7 +197,29 @@ func (e SimpleEdge) ToPolyEdge(size int) PolyEdge {
 		return polyEdge
 	}
 	// Shouldn't get here.
-	return PolyEdge{[]gomath.Spatial{e.From(), e.To()}, e.Id(), e.distance}
+	return PolyEdge{[]gomath.Spatial{e.From(), e.To()}, e.Id(), e.distance, e.Hash()}
+}
+
+func (e SimpleEdge) Hash() int64 {
+	if e.hash != -1 {
+		return e.hash
+	}
+	fromHash := VertexHashOrId(ToVertex(e.From()))
+	toHash := VertexHashOrId(ToVertex(e.To()))
+	values := []float64{float64(fromHash), float64(toHash)}
+	hasher := fnv.New64a()
+
+	for _, value := range values {
+		bits := math.Float64bits(value)
+		buf := make([]byte, 8)
+		for i := 0; i < 8; i++ {
+			buf[i] = byte(bits >> (i * 8))
+		}
+		_, _ = hasher.Write(buf)
+	}
+
+	e.hash = int64(hasher.Sum64())
+	return e.hash
 }
 
 // </editor-fold>
@@ -193,6 +229,7 @@ type PolyEdge struct {
 	Points   []gomath.Spatial
 	id       int64
 	distance float64
+	hash     int64
 }
 
 func (e PolyEdge) From() gomath.Spatial {
@@ -292,7 +329,7 @@ func (e PolyEdge) Split(size int, distanceFunction ...gomath.DistanceFunction) [
 		retArray := make([]gomath.Segment, size)
 		for i := 0; i < len(e.Points)-1; i++ {
 			curr, next := e.Points[i], e.Points[i+1]
-			retArray[i] = SimpleEdge{curr, next, -1, -1}
+			retArray[i] = SimpleEdge{curr, next, -1, -1, -1}
 		}
 		return retArray
 	}
@@ -303,10 +340,10 @@ func (e PolyEdge) Split(size int, distanceFunction ...gomath.DistanceFunction) [
 	for i := 1; i < size; i++ {
 		scalar := float64(i) * delta
 		current := e.scaleInternal(scalar, relativeDistances)
-		retArray[i] = SimpleEdge{previous, current, -1, -1}
+		retArray[i] = SimpleEdge{previous, current, -1, -1, -1}
 		previous = current
 	}
-	retArray[0] = SimpleEdge{e.From(), retArray[1].From(), -1, -1}
+	retArray[0] = SimpleEdge{e.From(), retArray[1].From(), -1, -1, -1}
 	return retArray
 }
 
@@ -319,6 +356,18 @@ func (e PolyEdge) String() string {
 		return fmt.Sprintf("[%v]", strings.Join(retArray, "->"))
 	}
 	return fmt.Sprintf("[%v]:%v", strings.Join(retArray, "->"), e.id)
+}
+
+func (e PolyEdge) Hash() int64 {
+	if e.hash != -1 {
+		return e.hash
+	}
+	hash := int64(31)
+	for _, point := range e.Points {
+		hash ^= VertexHashOrId(ToVertex(point))
+	}
+	e.hash = hash
+	return e.hash
 }
 
 // </editor-fold>

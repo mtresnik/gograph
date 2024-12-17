@@ -1,4 +1,4 @@
-package gomaze
+package gograph
 
 import (
 	"github.com/mtresnik/goutils/pkg/goutils"

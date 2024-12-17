@@ -1,4 +1,4 @@
-package gomaze
+package gograph
 
 import "testing"
 

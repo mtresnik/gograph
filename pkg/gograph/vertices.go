@@ -2,6 +2,8 @@ package gograph
 
 import (
 	"github.com/mtresnik/gomath/pkg/gomath"
+	"hash/fnv"
+	"math"
 )
 
 type Vertex interface {
@@ -16,6 +18,7 @@ type Vertex interface {
 	GetEdges() []Edge
 	Hash() int64
 	GetEdge(to Vertex) Edge
+	AddEdge(edge Edge)
 }
 
 type VertexListener interface {
@@ -50,19 +53,26 @@ func ToVertex(vertex interface{}) Vertex {
 	panic("Cannot cast to Vertex")
 }
 
-func HashOrId(vertex Vertex) int64 {
-	if vertex.Id() >= 0 {
+func VertexHashOrId(vertex Vertex) int64 {
+	if vertex.Id() > 0 {
 		return vertex.Id()
 	}
 	return HashVertex(vertex)
 }
 
 func HashVertex(vertex Vertex) int64 {
-	retHash := int64(1)
+	hasher := fnv.New64a()
+
 	for _, value := range vertex.GetValues() {
-		retHash = retHash*31 + int64(value)
+		bits := math.Float64bits(value)
+		buf := make([]byte, 8)
+		for i := 0; i < 8; i++ {
+			buf[i] = byte(bits >> (i * 8))
+		}
+		_, _ = hasher.Write(buf)
 	}
-	return retHash
+
+	return int64(hasher.Sum64())
 }
 
 type SimpleVertex struct {
@@ -127,6 +137,13 @@ func (v SimpleVertex) Hash() int64 {
 	return v.hash
 }
 
+func (v SimpleVertex) AddEdge(edge Edge) {
+	if v.Edges == nil {
+		v.Edges = make([]Edge, 0)
+	}
+	v.Edges = append(v.Edges, edge)
+}
+
 type VertexWrapper struct {
 	Previous *VertexWrapper
 	Inner    Vertex
@@ -180,4 +197,8 @@ func (v VertexWrapper) Hash() int64 {
 
 func (v VertexWrapper) GetEdge(to Vertex) Edge {
 	return v.Inner.GetEdge(to)
+}
+
+func (v VertexWrapper) AddEdge(edge Edge) {
+	v.Inner.AddEdge(edge)
 }

@@ -1,4 +1,9 @@
-package gomaze
+package gograph
+
+import (
+	"hash/fnv"
+	"math"
+)
 
 const (
 	DIRECTION_RIGHT = 0
@@ -13,7 +18,19 @@ type MazeCoordinate interface {
 }
 
 func HashMazeCoordinate(c MazeCoordinate) int64 {
-	return int64(c.GetRow())<<32 | int64(c.GetCol())
+	values := []float64{float64(c.GetRow()), float64(c.GetCol())}
+	hasher := fnv.New64a()
+
+	for _, value := range values {
+		bits := math.Float64bits(value)
+		buf := make([]byte, 8)
+		for i := 0; i < 8; i++ {
+			buf[i] = byte(bits >> (i * 8))
+		}
+		_, _ = hasher.Write(buf)
+	}
+
+	return int64(hasher.Sum64())
 }
 
 func EqualsMazeCoordinate(a, b MazeCoordinate) bool {

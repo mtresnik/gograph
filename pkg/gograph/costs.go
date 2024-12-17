@@ -56,11 +56,11 @@ type MultiplicativeCostFunction struct {
 	Functions map[string]CostFunction
 }
 
-func (f MultiplicativeCostFunction) GetCostFunctions() map[string]CostFunction {
+func (f *MultiplicativeCostFunction) GetCostFunctions() map[string]CostFunction {
 	return f.Functions
 }
 
-func (f MultiplicativeCostFunction) Eval(vertexWrapper VertexWrapper, to gomath.Spatial) float64 {
+func (f *MultiplicativeCostFunction) Eval(vertexWrapper VertexWrapper, to gomath.Spatial) float64 {
 	totalCost := 1.0
 	for _, function := range f.Functions {
 		totalCost *= function.Eval(vertexWrapper, to)
@@ -91,4 +91,52 @@ type AbsoluteValueCostFunction struct {
 
 func (f AbsoluteValueCostFunction) Eval(vertexWrapper VertexWrapper, to gomath.Spatial) float64 {
 	return math.Abs(f.Inner.Eval(vertexWrapper, to))
+}
+
+type CostCombiner interface {
+	Calculate(costs map[string]CostEntry) float64
+}
+
+type SumCostCombiner struct{}
+
+func (c SumCostCombiner) Calculate(costs map[string]CostEntry) float64 {
+	total := 0.0
+	for _, cost := range costs {
+		total += cost.Total
+	}
+	return total
+}
+
+type MinCostCombiner struct{}
+
+func (c MinCostCombiner) Calculate(costs map[string]CostEntry) float64 {
+	minCost := math.MaxFloat64
+	for _, cost := range costs {
+		if cost.Total < minCost {
+			minCost = cost.Total
+		}
+	}
+	return minCost
+}
+
+type MaxCostCombiner struct{}
+
+func (c MaxCostCombiner) Calculate(costs map[string]CostEntry) float64 {
+	maxCost := 0.0
+	for _, cost := range costs {
+		if cost.Total > maxCost {
+			maxCost = cost.Total
+		}
+	}
+	return maxCost
+}
+
+type MultiplicativeCostCombiner struct{}
+
+func (c MultiplicativeCostCombiner) Calculate(costs map[string]CostEntry) float64 {
+	total := 1.0
+	for _, cost := range costs {
+		total *= cost.Total
+	}
+	return total
 }
