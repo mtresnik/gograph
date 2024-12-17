@@ -1,8 +1,9 @@
 package gograph
 
 import (
+	"crypto/sha256"
+	"encoding/binary"
 	"github.com/mtresnik/gomath/pkg/gomath"
-	"hash/fnv"
 	"math"
 )
 
@@ -40,7 +41,7 @@ func getEdge(from Vertex, to Vertex) Edge {
 }
 
 func VertexFromSpatial(spatial gomath.Spatial) Vertex {
-	return SimpleVertex{Spatial: spatial, Edges: []Edge{}, id: -1, hash: -1}
+	return &SimpleVertex{Spatial: spatial, Edges: []Edge{}, id: -1, hash: -1}
 }
 
 func ToVertex(vertex interface{}) Vertex {
@@ -61,18 +62,33 @@ func VertexHashOrId(vertex Vertex) int64 {
 }
 
 func HashVertex(vertex Vertex) int64 {
-	hasher := fnv.New64a()
+	hasher := sha256.New()
 
-	for _, value := range vertex.GetValues() {
+	values := vertex.GetValues()
+	for _, value := range values {
 		bits := math.Float64bits(value)
 		buf := make([]byte, 8)
-		for i := 0; i < 8; i++ {
-			buf[i] = byte(bits >> (i * 8))
-		}
+		binary.BigEndian.PutUint64(buf, bits)
 		_, _ = hasher.Write(buf)
 	}
 
-	return int64(hasher.Sum64())
+	if vertex.Id() > 0 {
+		idBuf := make([]byte, 8)
+		binary.BigEndian.PutUint64(idBuf, uint64(vertex.Id()))
+		_, _ = hasher.Write(idBuf)
+	}
+
+	size := vertex.Size()
+	sizeBuf := make([]byte, 8)
+	binary.BigEndian.PutUint64(sizeBuf, uint64(size))
+	_, _ = hasher.Write(sizeBuf)
+
+	fullHash := hasher.Sum(nil)
+	hash1 := binary.BigEndian.Uint64(fullHash[:8])
+	hash2 := binary.BigEndian.Uint64(fullHash[8:16])
+
+	finalHash := int64(hash1 ^ hash2)
+	return finalHash
 }
 
 type SimpleVertex struct {
@@ -86,61 +102,58 @@ func NewVertex(spatial gomath.Spatial, edges ...Edge) SimpleVertex {
 	return SimpleVertex{Spatial: spatial, Edges: edges, id: -1, hash: -1}
 }
 
-func (v SimpleVertex) GetEdge(to Vertex) Edge {
+func (v *SimpleVertex) GetEdge(to Vertex) Edge {
 	return getEdge(v, to)
 }
 
-func (v SimpleVertex) DistanceTo(other SimpleVertex, distanceFunction ...gomath.DistanceFunction) float64 {
+func (v *SimpleVertex) DistanceTo(other SimpleVertex, distanceFunction ...gomath.DistanceFunction) float64 {
 	return gomath.ToPoint(v.Spatial).DistanceTo(gomath.ToPoint(other.Spatial), distanceFunction...)
 }
 
-func (v SimpleVertex) GetValues() []float64 {
+func (v *SimpleVertex) GetValues() []float64 {
 	return v.Spatial.GetValues()
 }
 
-func (v SimpleVertex) SetValues(values []float64) {
+func (v *SimpleVertex) SetValues(values []float64) {
 	v.Spatial.SetValues(values)
 }
 
-func (v SimpleVertex) Size() int {
+func (v *SimpleVertex) Size() int {
 	return v.Spatial.Size()
 }
 
-func (v SimpleVertex) X() float64 {
+func (v *SimpleVertex) X() float64 {
 	return v.Spatial.X()
 }
 
-func (v SimpleVertex) Y() float64 {
+func (v *SimpleVertex) Y() float64 {
 	return v.Spatial.Y()
 }
 
-func (v SimpleVertex) Z() float64 {
+func (v *SimpleVertex) Z() float64 {
 	return v.Spatial.Z()
 }
 
-func (v SimpleVertex) W() float64 {
+func (v *SimpleVertex) W() float64 {
 	return v.Spatial.W()
 }
 
-func (v SimpleVertex) Id() int64 {
+func (v *SimpleVertex) Id() int64 {
 	return v.id
 }
 
-func (v SimpleVertex) GetEdges() []Edge {
+func (v *SimpleVertex) GetEdges() []Edge {
 	return v.Edges
 }
 
-func (v SimpleVertex) Hash() int64 {
-	if v.hash == -1 {
+func (v *SimpleVertex) Hash() int64 {
+	if v.hash <= 0 {
 		v.hash = HashVertex(v)
 	}
 	return v.hash
 }
 
-func (v SimpleVertex) AddEdge(edge Edge) {
-	if v.Edges == nil {
-		v.Edges = make([]Edge, 0)
-	}
+func (v *SimpleVertex) AddEdge(edge Edge) {
 	v.Edges = append(v.Edges, edge)
 }
 

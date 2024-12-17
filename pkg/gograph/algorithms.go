@@ -32,13 +32,13 @@ type BFS struct {
 	EdgeListeners   []EdgeListener
 }
 
-func (b BFS) VisitVertex(vertex Vertex) {
+func (b *BFS) VisitVertex(vertex Vertex) {
 	for _, visitor := range b.VertexListeners {
 		visitor.Visit(vertex)
 	}
 }
 
-func (b BFS) VisitEdge(edge Edge) {
+func (b *BFS) VisitEdge(edge Edge) {
 	for _, visitor := range b.EdgeListeners {
 		visitor.Visit(edge)
 	}
@@ -47,14 +47,14 @@ func (b BFS) VisitEdge(edge Edge) {
 func Backtrack(vertex VertexWrapper) []Edge {
 	var path []Edge
 	var currentWrapper = vertex
-	for currentWrapper.Previous != nil {
+	for currentWrapper.Previous != nil && currentWrapper.Hash() != currentWrapper.Previous.Hash() {
 		path = append(path, currentWrapper.Previous.Inner.GetEdge(currentWrapper.Inner))
 		currentWrapper = *currentWrapper.Previous
 	}
 	return path
 }
 
-func (b BFS) Evaluate(parameters RoutingRequest) (RoutingResponse, *error) {
+func (b *BFS) Evaluate(parameters RoutingRequest) (RoutingResponse, *error) {
 	start := parameters.Start
 	destination := parameters.Destination
 	constraints := parameters.Constraints
@@ -76,12 +76,13 @@ func (b BFS) Evaluate(parameters RoutingRequest) (RoutingResponse, *error) {
 	startWrapper.Previous = nil
 	queue := []VertexWrapper{startWrapper}
 	visited := make(map[int64]bool)
-	visited[start.Id()] = true
-	var curr = startWrapper
+	var curr VertexWrapper
 	for len(queue) > 0 {
 		curr = queue[0]
 		queue = queue[1:]
+		visited[VertexHashOrId(curr)] = true
 		if curr.Hash() == destination.Hash() {
+			println("found path")
 			break
 		}
 		for _, edge := range curr.Inner.GetEdges() {
@@ -114,7 +115,8 @@ func (b BFS) Evaluate(parameters RoutingRequest) (RoutingResponse, *error) {
 				}
 				if pass {
 					b.VisitEdge(edge)
-					successor.Previous = &curr
+					previousWrapper := curr
+					successor.Previous = &previousWrapper
 					queue = append(queue, successor)
 					visited[hashOrId] = true
 					b.VisitVertex(toVertex)
@@ -122,15 +124,21 @@ func (b BFS) Evaluate(parameters RoutingRequest) (RoutingResponse, *error) {
 			}
 		}
 		if len(queue) == 0 {
+			println("no path found, try relaxing the constraints")
 			err := errors.New("no path found, try relaxing the constraints")
 			return RoutingResponse{}, &err
 		}
 	}
+	println("backtracking")
 	edges := Backtrack(curr)
+	println("edge count:", len(edges))
 
-	costCombiner := *parameters.CostCombiner
-	if costCombiner == nil {
+	costCombinerPtr := parameters.CostCombiner
+	var costCombiner CostCombiner
+	if costCombinerPtr == nil {
 		costCombiner = MultiplicativeCostCombiner{}
+	} else {
+		costCombiner = *costCombinerPtr
 	}
 
 	path := NewSimplePath(edges, costCombiner.Calculate(curr.Costs))

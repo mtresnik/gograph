@@ -20,8 +20,7 @@ func (m MazeToGraphProvider) Build(maze Maze) Graph {
 			Spatial: gomath.Point{Values: []float64{float64(cell.Col), float64(cell.Row)}},
 			Edges:   make([]Edge, 0),
 		}
-		retGraph.AddVertex(vertex)
-		cellToVertexMap[cell.Hash()] = vertex
+		cellToVertexMap[cell.Hash()] = &vertex
 	}
 
 	allConnections := make([]MazeConnection, 0)
@@ -40,7 +39,11 @@ func (m MazeToGraphProvider) Build(maze Maze) Graph {
 		if from != nil && to != nil {
 			edge := NewSimpleEdge(from, to, -1)
 			from.AddEdge(edge)
+			to.AddEdge(edge.Reverse())
 			retGraph.AddEdge(edge)
+			retGraph.AddEdge(edge.Reverse())
+			retGraph.AddVertex(from)
+			retGraph.AddVertex(to)
 			calls++
 		}
 	}

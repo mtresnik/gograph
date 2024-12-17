@@ -6,7 +6,15 @@ github.com/mtresnik/gomath v1.1.1 h1:EI0nfJSf9hyXA66ctxhjJ3yom4Cg/bvINpTbL23UDAg
 github.com/mtresnik/gomath v1.1.1/go.mod h1:aflK19yIYDuuZdLbVduJobiuadXHlNfMaO1CiLgGoT4=
 github.com/mtresnik/gomath v1.1.2 h1:2xaP1TBDW+Wi3p5KbysucXXwdOQIjQgH20SwOcVkp38=
 github.com/mtresnik/gomath v1.1.2/go.mod h1:aflK19yIYDuuZdLbVduJobiuadXHlNfMaO1CiLgGoT4=
+github.com/mtresnik/gomath v1.1.3 h1:7ViEOWGEN8vsh4hyHfGm1dXVCGg0fmY1gFdWL7u4wGc=
+github.com/mtresnik/gomath v1.1.3/go.mod h1:aflK19yIYDuuZdLbVduJobiuadXHlNfMaO1CiLgGoT4=
+github.com/mtresnik/gomath v1.1.4 h1:h4gVEzwM6GBJiGbBM7PlybA/Q5ngpGfec0RrLoan4mA=
+github.com/mtresnik/gomath v1.1.4/go.mod h1:aJgQh4Dsnfh9y8qi6W3nS+P9KG6V+3Aup5k1O3QIEFg=
 github.com/mtresnik/goutils v1.1.1 h1:IsCeQkFJvtb768ECddOILmK5n+VDDCpdHIWzFnJjsDQ=
 github.com/mtresnik/goutils v1.1.1/go.mod h1:v9vZuQDB6PeVz0zsTHAmwHrwRz62JkQ5llZwQaLZP20=
 github.com/mtresnik/goutils v1.1.2 h1:FItrLrtsmbBXnyl5XynFAQbHaCt4B+OqbFSQPY93yJY=
 github.com/mtresnik/goutils v1.1.2/go.mod h1:v9vZuQDB6PeVz0zsTHAmwHrwRz62JkQ5llZwQaLZP20=
+github.com/mtresnik/goutils v1.1.3 h1:rODNwGWnt9vVHmSRK0GvI2/QeI4sLti/jUNDKra8bcI=
+github.com/mtresnik/goutils v1.1.3/go.mod h1:v9vZuQDB6PeVz0zsTHAmwHrwRz62JkQ5llZwQaLZP20=
+github.com/mtresnik/goutils v1.1.4 h1:dYdoNsV9Oo7A0ZWf4XvOjmLDYN7P59LxZjTalZ5LQcc=
+github.com/mtresnik/goutils v1.1.4/go.mod h1:v9vZuQDB6PeVz0zsTHAmwHrwRz62JkQ5llZwQaLZP20=
