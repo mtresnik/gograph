@@ -12,6 +12,8 @@ type RoutingAlgorithmRequest struct {
 	Constraints       *map[string][]Constraint
 	MultiCostFunction *MultiCostFunction
 	CostFunctions     *map[string]CostFunction
+	UpdateListeners   *[]RoutingAlgorithmUpdateListener
+	Algorithm         RoutingAlgorithm
 }
 
 type RoutingAlgorithmResponse struct {
@@ -32,11 +34,14 @@ func VisitRoutingAlgorithmUpdateListeners(listeners []RoutingAlgorithmUpdateList
 }
 
 type RoutingAlgorithm interface {
-	Evaluate(parameters RoutingAlgorithmRequest) (RoutingAlgorithmResponse, *error)
+	Evaluate(parameters RoutingAlgorithmRequest) RoutingAlgorithmResponse
 }
 
 type BFS struct {
-	UpdateListeners []RoutingAlgorithmUpdateListener
+}
+
+func EvaluateRoutingAlgorithm(parameters RoutingAlgorithmRequest) RoutingAlgorithmResponse {
+	return parameters.Algorithm.Evaluate(parameters)
 }
 
 func Backtrack(vertex *VertexWrapper) []Edge {
@@ -62,29 +67,29 @@ func (b *BFS) Evaluate(parameters RoutingAlgorithmRequest) RoutingAlgorithmRespo
 	queue := []*VertexWrapper{startWrapper}
 	visited := make(map[int64]bool)
 	var curr *VertexWrapper
-	approximateWorst := 10 * MultiplyCosts(GenerateNextCosts(startWrapper, destination, costFunctions)).Total
-	bestCosts := GenerateWorstCosts(costFunctions, approximateWorst)
 	bestCombined := math.MaxFloat64
 	var best = startWrapper
+	updateListeners := make([]RoutingAlgorithmUpdateListener, 0)
+	if parameters.UpdateListeners != nil {
+		updateListeners = *parameters.UpdateListeners
+	}
 	for len(queue) > 0 {
 		curr = queue[0]
-		currCombined := MultiplyCosts(GenerateCostDifference(bestCosts, curr.Costs)).Total
+		currCombined := MultiplyCosts(GenerateNextCosts(curr, destination, costFunctions)).Current
 		if currCombined < bestCombined {
-			best = curr
+			best = NewVertexWrapper(curr.Inner, curr.Costs)
+			best.Previous = curr.Previous
 			bestCombined = currCombined
-			bestCosts = curr.Costs
 		}
+		VisitRoutingAlgorithmUpdateListeners(updateListeners, RoutingAlgorithmResponse{
+			best.Costs,
+			NewSimplePath(Backtrack(best)),
+			visited,
+			false})
 		queue = queue[1:]
 		visited[VertexHashOrId(curr)] = true
 		if curr.Hash() == destination.Hash() {
 			break
-		}
-		if best.Hash() != start.Hash() {
-			VisitRoutingAlgorithmUpdateListeners(b.UpdateListeners, RoutingAlgorithmResponse{
-				best.Costs,
-				NewSimplePath(Backtrack(best)),
-				visited,
-				false})
 		}
 		for _, edge := range curr.Inner.GetEdges() {
 			toVertex := ToVertex(edge.To())
@@ -130,25 +135,27 @@ func (b *BFS) Evaluate(parameters RoutingAlgorithmRequest) RoutingAlgorithmRespo
 	if curr != nil {
 		finalCosts = curr.Costs
 	}
-
-	return RoutingAlgorithmResponse{
+	response := RoutingAlgorithmResponse{
 		Costs:     finalCosts,
 		Path:      path,
 		Visited:   visited,
 		Completed: true,
 	}
+	VisitRoutingAlgorithmUpdateListeners(updateListeners, response)
+
+	return response
 }
 
 type DFS struct {
 }
 
-func (b DFS) Evaluate(parameters RoutingAlgorithmRequest) (RoutingAlgorithmResponse, *error) {
+func (b *DFS) Evaluate(parameters RoutingAlgorithmRequest) (RoutingAlgorithmResponse, *error) {
 	panic("implement me")
 }
 
 type AStar struct {
 }
 
-func (b AStar) Evaluate(parameters RoutingAlgorithmRequest) (RoutingAlgorithmResponse, *error) {
+func (b *AStar) Evaluate(parameters RoutingAlgorithmRequest) (RoutingAlgorithmResponse, *error) {
 	panic("implement me")
 }

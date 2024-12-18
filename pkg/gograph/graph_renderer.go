@@ -5,6 +5,7 @@ import (
 	"github.com/mtresnik/goutils/pkg/goutils"
 	"image"
 	"image/color"
+	"image/gif"
 )
 
 type IGraphRenderer interface {
@@ -176,9 +177,6 @@ func (g *GraphRenderer) padBounds() {
 }
 
 func (g *GraphRenderer) Render() *image.RGBA {
-	if g == nil {
-		return nil
-	}
 	if g.bounds.Area() <= 0 {
 		return nil
 	}
@@ -224,4 +222,93 @@ func (g *GraphRenderer) Render() *image.RGBA {
 		}
 	}
 	return img
+}
+
+type LiveGraphRenderer struct {
+	Graph         Graph
+	Request       RoutingAlgorithmRequest
+	Frames        []*image.Paletted
+	Width         int
+	Height        int
+	Padding       int
+	lineThickness int
+	pointRadius   int
+}
+
+func NewLiveGraphRenderer(graph Graph, request RoutingAlgorithmRequest, width, height int) *LiveGraphRenderer {
+	return &LiveGraphRenderer{
+		Graph:         graph,
+		Request:       request,
+		Frames:        make([]*image.Paletted, 0),
+		Width:         width,
+		Height:        height,
+		Padding:       50,
+		lineThickness: 5,
+		pointRadius:   10,
+	}
+}
+
+func (g *LiveGraphRenderer) Build() {
+	g.Request.UpdateListeners = &[]RoutingAlgorithmUpdateListener{g}
+	EvaluateRoutingAlgorithm(g.Request)
+}
+
+func (g *LiveGraphRenderer) Update(response RoutingAlgorithmResponse) {
+	points := make([]gomath.Spatial, 0)
+	pointColor := color.RGBA{R: 0, G: 255, B: 0, A: 255}
+	visitedColor := color.RGBA{R: 111, G: 111, B: 255, A: 255}
+	points = append(points, g.Request.Start, g.Request.Destination)
+	pointMap := make(map[int64]gomath.Spatial)
+	colorMap := make(map[int64]color.RGBA)
+	for _, point := range points {
+		hash := gomath.HashSpatial(point)
+		pointMap[hash] = point
+		colorMap[hash] = pointColor
+	}
+	for _, vertex := range g.Graph.GetVertices() {
+		hash := vertex.Hash()
+		_, ok := response.Visited[hash]
+		if ok {
+			colorMap[hash] = visitedColor
+			pointMap[hash] = vertex
+		}
+	}
+	internalGraphRenderer := GraphRenderer{
+		Graphs:        map[int64]Graph{},
+		Points:        pointMap,
+		Colors:        colorMap,
+		Paths:         map[int64]Path{},
+		bounds:        gomath.BoundingBox{},
+		Width:         g.Width,
+		Height:        g.Height,
+		Padding:       g.Padding,
+		lineThickness: g.lineThickness,
+		pointRadius:   g.pointRadius,
+	}
+	internalGraphRenderer.AddGraph(g.Graph)
+	internalGraphRenderer.AddPath(response.Path)
+	internalGraphRenderer.AddPoint(g.Request.Start, pointColor)
+	internalGraphRenderer.AddPoint(g.Request.Destination, pointColor)
+	img := internalGraphRenderer.Render()
+	paletted := ConvertImageToPaletted(img)
+	g.Frames = append(g.Frames, paletted)
+}
+
+func (g *LiveGraphRenderer) RenderFrames() *gif.GIF {
+	g.Build()
+	if len(g.Frames) == 0 {
+		return nil
+	}
+	images := g.Frames
+	delays := make([]int, len(images))
+	for i := 0; i < len(images); i++ {
+		delays[i] = 5
+	}
+	retGif := &gif.GIF{
+		Image:     images,
+		Delay:     delays,
+		LoopCount: -1,
+	}
+	return retGif
+
 }
