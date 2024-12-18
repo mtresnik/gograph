@@ -20,6 +20,7 @@ type Edge interface {
 	Id() int64
 	String() string
 	Hash() int64
+	Cost() *map[string]float64
 }
 
 func EdgeHashOrId(e Edge) int64 {
@@ -27,10 +28,6 @@ func EdgeHashOrId(e Edge) int64 {
 		return e.Id()
 	}
 	return e.Hash()
-}
-
-type EdgeListener interface {
-	Visit(e Edge)
 }
 
 func EdgesToString(edges ...Edge) string {
@@ -70,9 +67,9 @@ func NewEdge(points ...gomath.Spatial) Edge {
 		panic("At least two points are required to create an edge")
 	}
 	if len(points) == 2 {
-		return SimpleEdge{points[0], points[1], -1, -1, -1}
+		return NewSimpleEdge(points[0], points[1], -1)
 	}
-	return PolyEdge{points, -1, -1, -1}
+	return NewPolyEdge(points, -1)
 }
 
 func CastToEdges(segments ...gomath.Segment) []Edge {
@@ -112,10 +109,11 @@ type SimpleEdge struct {
 	id       int64
 	distance float64
 	hash     int64
+	cost     *map[string]float64
 }
 
 func NewSimpleEdge(from gomath.Spatial, to gomath.Spatial, id int64) SimpleEdge {
-	return SimpleEdge{from, to, id, -1.0, -1}
+	return SimpleEdge{from, to, id, -1.0, -1, nil}
 }
 
 func (e SimpleEdge) From() gomath.Spatial {
@@ -127,7 +125,7 @@ func (e SimpleEdge) To() gomath.Spatial {
 }
 
 func (e SimpleEdge) Reverse() Edge {
-	return SimpleEdge{e.to, e.from, e.id, -1.0, -1}
+	return NewSimpleEdge(e.to, e.from, e.id)
 }
 
 func (e SimpleEdge) Id() int64 {
@@ -170,7 +168,7 @@ func (e SimpleEdge) Split(size int, distanceFunction ...gomath.DistanceFunction)
 	for i := 0; i < size; i++ {
 		scalar := float64(i+1) * delta
 		current := e.Scale(scalar, distanceFunction...)
-		retArray[i] = SimpleEdge{previous, current, -1, -1, -1}
+		retArray[i] = NewSimpleEdge(previous, current, -1)
 		previous = current
 	}
 	return retArray
@@ -188,7 +186,7 @@ func (e SimpleEdge) ToPolyEdge(size int) PolyEdge {
 		panic("At least one edge is required to create a poly edge")
 	}
 	if size == 1 {
-		return PolyEdge{[]gomath.Spatial{e.From(), e.To()}, e.Id(), e.distance, -1}
+		return PolyEdge{[]gomath.Spatial{e.From(), e.To()}, e.Id(), e.distance, -1, e.cost}
 	}
 	split := e.Split(size) // use Euclidean distance
 	contracted := Contract(split[0], split[1:]...)
@@ -197,7 +195,7 @@ func (e SimpleEdge) ToPolyEdge(size int) PolyEdge {
 		return polyEdge
 	}
 	// Shouldn't get here.
-	return PolyEdge{[]gomath.Spatial{e.From(), e.To()}, e.Id(), e.distance, e.Hash()}
+	return PolyEdge{[]gomath.Spatial{e.From(), e.To()}, e.Id(), e.distance, e.Hash(), e.cost}
 }
 
 func (e SimpleEdge) Hash() int64 {
@@ -222,6 +220,10 @@ func (e SimpleEdge) Hash() int64 {
 	return e.hash
 }
 
+func (e SimpleEdge) Cost() *map[string]float64 {
+	return e.cost
+}
+
 // </editor-fold>
 
 // PolyEdge <editor-fold>
@@ -230,6 +232,11 @@ type PolyEdge struct {
 	id       int64
 	distance float64
 	hash     int64
+	cost     *map[string]float64
+}
+
+func NewPolyEdge(points []gomath.Spatial, id int64) PolyEdge {
+	return PolyEdge{points, id, -1, -1, nil}
 }
 
 func (e PolyEdge) From() gomath.Spatial {
@@ -245,7 +252,7 @@ func (e PolyEdge) Reverse() Edge {
 	for i := 0; i < len(e.Points); i++ {
 		reversedVertices[i] = e.Points[len(e.Points)-1-i]
 	}
-	return PolyEdge{Points: reversedVertices, id: e.id}
+	return NewPolyEdge(reversedVertices, e.id)
 }
 
 func (e PolyEdge) Id() int64 {
@@ -329,7 +336,7 @@ func (e PolyEdge) Split(size int, distanceFunction ...gomath.DistanceFunction) [
 		retArray := make([]gomath.Segment, size)
 		for i := 0; i < len(e.Points)-1; i++ {
 			curr, next := e.Points[i], e.Points[i+1]
-			retArray[i] = SimpleEdge{curr, next, -1, -1, -1}
+			retArray[i] = NewSimpleEdge(curr, next, -1)
 		}
 		return retArray
 	}
@@ -340,10 +347,10 @@ func (e PolyEdge) Split(size int, distanceFunction ...gomath.DistanceFunction) [
 	for i := 1; i < size; i++ {
 		scalar := float64(i) * delta
 		current := e.scaleInternal(scalar, relativeDistances)
-		retArray[i] = SimpleEdge{previous, current, -1, -1, -1}
+		retArray[i] = NewSimpleEdge(previous, current, -1)
 		previous = current
 	}
-	retArray[0] = SimpleEdge{e.From(), retArray[1].From(), -1, -1, -1}
+	retArray[0] = NewSimpleEdge(e.From(), retArray[1].From(), -1)
 	return retArray
 }
 
@@ -368,6 +375,10 @@ func (e PolyEdge) Hash() int64 {
 	}
 	e.hash = hash
 	return e.hash
+}
+
+func (e PolyEdge) Cost() *map[string]float64 {
+	return e.cost
 }
 
 // </editor-fold>

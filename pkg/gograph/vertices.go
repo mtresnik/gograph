@@ -22,11 +22,7 @@ type Vertex interface {
 	AddEdge(edge Edge)
 }
 
-type VertexListener interface {
-	Visit(v Vertex)
-}
-
-func getEdge(from Vertex, to Vertex) Edge {
+func GetEdge(from Vertex, to Vertex) Edge {
 	for _, edge := range from.GetEdges() {
 		if ToVertex(edge.To()).Hash() == to.Hash() {
 			return edge
@@ -98,12 +94,12 @@ type SimpleVertex struct {
 	hash    int64
 }
 
-func NewVertex(spatial gomath.Spatial, edges ...Edge) SimpleVertex {
+func NewSimpleVertex(spatial gomath.Spatial, edges ...Edge) SimpleVertex {
 	return SimpleVertex{Spatial: spatial, Edges: edges, id: -1, hash: -1}
 }
 
 func (v *SimpleVertex) GetEdge(to Vertex) Edge {
-	return getEdge(v, to)
+	return GetEdge(v, to)
 }
 
 func (v *SimpleVertex) DistanceTo(other SimpleVertex, distanceFunction ...gomath.DistanceFunction) float64 {
@@ -164,54 +160,54 @@ type VertexWrapper struct {
 	Costs    map[string]CostEntry
 }
 
-func NewVertexWrapper(inner Vertex, costs map[string]CostEntry) VertexWrapper {
-	return VertexWrapper{Inner: inner, Costs: costs}
+func NewVertexWrapper(inner Vertex, costs map[string]CostEntry) *VertexWrapper {
+	return &VertexWrapper{Inner: inner, Costs: costs}
 }
 
-func (v VertexWrapper) GetValues() []float64 {
+func (v *VertexWrapper) GetValues() []float64 {
 	return v.Inner.GetValues()
 }
 
-func (v VertexWrapper) SetValues(newValues []float64) {
+func (v *VertexWrapper) SetValues(newValues []float64) {
 	v.Inner.SetValues(newValues)
 }
 
-func (v VertexWrapper) Size() int {
+func (v *VertexWrapper) Size() int {
 	return v.Inner.Size()
 }
 
-func (v VertexWrapper) X() float64 {
+func (v *VertexWrapper) X() float64 {
 	return v.Inner.X()
 }
 
-func (v VertexWrapper) Y() float64 {
+func (v *VertexWrapper) Y() float64 {
 	return v.Inner.Y()
 }
 
-func (v VertexWrapper) Z() float64 {
+func (v *VertexWrapper) Z() float64 {
 	return v.Inner.Z()
 }
 
-func (v VertexWrapper) W() float64 {
+func (v *VertexWrapper) W() float64 {
 	return v.Inner.W()
 }
 
-func (v VertexWrapper) Id() int64 {
+func (v *VertexWrapper) Id() int64 {
 	return v.Inner.Id()
 }
 
-func (v VertexWrapper) GetEdges() []Edge {
+func (v *VertexWrapper) GetEdges() []Edge {
 	return v.Inner.GetEdges()
 }
 
-func (v VertexWrapper) Hash() int64 {
+func (v *VertexWrapper) Hash() int64 {
 	return v.Inner.Hash()
 }
 
-func (v VertexWrapper) GetEdge(to Vertex) Edge {
+func (v *VertexWrapper) GetEdge(to Vertex) Edge {
 	return v.Inner.GetEdge(to)
 }
 
-func (v VertexWrapper) AddEdge(edge Edge) {
+func (v *VertexWrapper) AddEdge(edge Edge) {
 	v.Inner.AddEdge(edge)
 }

@@ -1,102 +1,95 @@
 package gograph
 
 import (
-	"errors"
 	"github.com/mtresnik/goutils/pkg/goutils"
 	"maps"
+	"math"
 )
 
-type RoutingRequest struct {
+type RoutingAlgorithmRequest struct {
 	Start             Vertex
 	Destination       Vertex
 	Constraints       *map[string][]Constraint
 	MultiCostFunction *MultiCostFunction
-	CostCombiner      *CostCombiner
 	CostFunctions     *map[string]CostFunction
 }
 
-type RoutingResponse struct {
-	Costs   map[string]CostEntry
-	Path    Path
-	Visited map[int64]bool
+type RoutingAlgorithmResponse struct {
+	Costs     map[string]CostEntry
+	Path      Path
+	Visited   map[int64]bool
+	Completed bool
+}
+
+type RoutingAlgorithmUpdateListener interface {
+	Update(response RoutingAlgorithmResponse)
+}
+
+func VisitRoutingAlgorithmUpdateListeners(listeners []RoutingAlgorithmUpdateListener, response RoutingAlgorithmResponse) {
+	for _, listener := range listeners {
+		listener.Update(response)
+	}
 }
 
 type RoutingAlgorithm interface {
-	VisitVertex(vertex Vertex)
-	VisitEdge(edge Edge)
-	Evaluate(parameters RoutingRequest) (RoutingResponse, *error)
+	Evaluate(parameters RoutingAlgorithmRequest) (RoutingAlgorithmResponse, *error)
 }
 
 type BFS struct {
-	VertexListeners []VertexListener
-	EdgeListeners   []EdgeListener
+	UpdateListeners []RoutingAlgorithmUpdateListener
 }
 
-func (b *BFS) VisitVertex(vertex Vertex) {
-	for _, visitor := range b.VertexListeners {
-		visitor.Visit(vertex)
+func Backtrack(vertex *VertexWrapper) []Edge {
+	if vertex == nil {
+		return []Edge{}
 	}
-}
-
-func (b *BFS) VisitEdge(edge Edge) {
-	for _, visitor := range b.EdgeListeners {
-		visitor.Visit(edge)
-	}
-}
-
-func Backtrack(vertex VertexWrapper) []Edge {
 	var path []Edge
 	var currentWrapper = vertex
 	for currentWrapper.Previous != nil && currentWrapper.Hash() != currentWrapper.Previous.Hash() {
 		path = append(path, currentWrapper.Previous.Inner.GetEdge(currentWrapper.Inner))
-		currentWrapper = *currentWrapper.Previous
+		currentWrapper = currentWrapper.Previous
 	}
 	return path
 }
 
-func (b *BFS) Evaluate(parameters RoutingRequest) (RoutingResponse, *error) {
+func (b *BFS) Evaluate(parameters RoutingAlgorithmRequest) RoutingAlgorithmResponse {
 	start := parameters.Start
 	destination := parameters.Destination
 	constraints := parameters.Constraints
-	var costFunctions map[string]CostFunction
-	if parameters.CostFunctions != nil {
-		costFunctions = *parameters.CostFunctions
-	} else {
-		costFunctions = map[string]CostFunction{COST_TYPE_DISTANCE: EuclideanDistanceCostFunction{}}
-	}
-	initialCosts := map[string]CostEntry{}
-	for key, _ := range costFunctions {
-		initialCosts[key] = CostEntry{
-			Accumulated: 0,
-			Current:     0,
-			Total:       0,
-		}
-	}
+	costFunctions, initialCosts := GenerateInitialCosts(parameters.CostFunctions)
 	startWrapper := NewVertexWrapper(start, initialCosts)
 	startWrapper.Previous = nil
-	queue := []VertexWrapper{startWrapper}
+	queue := []*VertexWrapper{startWrapper}
 	visited := make(map[int64]bool)
-	var curr VertexWrapper
+	var curr *VertexWrapper
+	approximateWorst := 10 * MultiplyCosts(GenerateNextCosts(startWrapper, destination, costFunctions)).Total
+	bestCosts := GenerateWorstCosts(costFunctions, approximateWorst)
+	bestCombined := math.MaxFloat64
+	var best = startWrapper
 	for len(queue) > 0 {
 		curr = queue[0]
+		currCombined := MultiplyCosts(GenerateCostDifference(bestCosts, curr.Costs)).Total
+		if currCombined < bestCombined {
+			best = curr
+			bestCombined = currCombined
+			bestCosts = curr.Costs
+		}
 		queue = queue[1:]
 		visited[VertexHashOrId(curr)] = true
 		if curr.Hash() == destination.Hash() {
-			println("found path")
 			break
+		}
+		if best.Hash() != start.Hash() {
+			VisitRoutingAlgorithmUpdateListeners(b.UpdateListeners, RoutingAlgorithmResponse{
+				best.Costs,
+				NewSimplePath(Backtrack(best)),
+				visited,
+				false})
 		}
 		for _, edge := range curr.Inner.GetEdges() {
 			toVertex := ToVertex(edge.To())
 			hashOrId := VertexHashOrId(toVertex)
-			nextCosts := map[string]CostEntry{}
-			for key, costFunction := range costFunctions {
-				nextCostByKey := costFunction.Eval(curr, toVertex)
-				nextCosts[key] = CostEntry{
-					Accumulated: curr.Costs[key].Total,
-					Current:     nextCostByKey,
-					Total:       curr.Costs[key].Total + nextCostByKey,
-				}
-			}
+			nextCosts := GenerateNextCosts(curr, toVertex, costFunctions)
 			if !goutils.SetContains(visited, hashOrId) {
 				successor := NewVertexWrapper(toVertex, nextCosts)
 				pass := true
@@ -114,51 +107,48 @@ func (b *BFS) Evaluate(parameters RoutingRequest) (RoutingResponse, *error) {
 					}
 				}
 				if pass {
-					b.VisitEdge(edge)
 					previousWrapper := curr
-					successor.Previous = &previousWrapper
+					successor.Previous = previousWrapper
 					queue = append(queue, successor)
 					visited[hashOrId] = true
-					b.VisitVertex(toVertex)
 				}
 			}
 		}
 		if len(queue) == 0 {
 			println("no path found, try relaxing the constraints")
-			err := errors.New("no path found, try relaxing the constraints")
-			return RoutingResponse{}, &err
+			return RoutingAlgorithmResponse{
+				best.Costs,
+				NewSimplePath(Backtrack(best)),
+				visited,
+				false}
 		}
+
 	}
-	println("backtracking")
 	edges := Backtrack(curr)
-	println("edge count:", len(edges))
-
-	costCombinerPtr := parameters.CostCombiner
-	var costCombiner CostCombiner
-	if costCombinerPtr == nil {
-		costCombiner = MultiplicativeCostCombiner{}
-	} else {
-		costCombiner = *costCombinerPtr
+	path := NewSimplePath(edges)
+	finalCosts := initialCosts
+	if curr != nil {
+		finalCosts = curr.Costs
 	}
 
-	path := NewSimplePath(edges, costCombiner.Calculate(curr.Costs))
-	return RoutingResponse{
-		Costs:   curr.Costs,
-		Path:    path,
-		Visited: visited,
-	}, nil
+	return RoutingAlgorithmResponse{
+		Costs:     finalCosts,
+		Path:      path,
+		Visited:   visited,
+		Completed: true,
+	}
 }
 
 type DFS struct {
 }
 
-func (b DFS) Evaluate(parameters RoutingRequest) (RoutingResponse, *error) {
+func (b DFS) Evaluate(parameters RoutingAlgorithmRequest) (RoutingAlgorithmResponse, *error) {
 	panic("implement me")
 }
 
 type AStar struct {
 }
 
-func (b AStar) Evaluate(parameters RoutingRequest) (RoutingResponse, *error) {
+func (b AStar) Evaluate(parameters RoutingAlgorithmRequest) (RoutingAlgorithmResponse, *error) {
 	panic("implement me")
 }

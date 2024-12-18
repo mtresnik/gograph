@@ -16,10 +16,7 @@ func (m MazeToGraphProvider) Build(maze Maze) Graph {
 
 	allCells := maze.Flatten()
 	for _, cell := range allCells {
-		vertex := SimpleVertex{
-			Spatial: gomath.Point{Values: []float64{float64(cell.Col), float64(cell.Row)}},
-			Edges:   make([]Edge, 0),
-		}
+		vertex := NewSimpleVertex(gomath.Point{Values: []float64{float64(cell.Col), float64(cell.Row)}}, make([]Edge, 0)...)
 		cellToVertexMap[cell.Hash()] = &vertex
 	}
 

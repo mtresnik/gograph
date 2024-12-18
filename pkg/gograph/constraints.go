@@ -3,14 +3,14 @@ package gograph
 import "github.com/mtresnik/gomath/pkg/gomath"
 
 type Constraint interface {
-	Check(currentVertex VertexWrapper, nextCost map[string]CostEntry) bool
+	Check(currentVertex *VertexWrapper, nextCost map[string]CostEntry) bool
 }
 
 type NegationConstraint struct {
 	Inner Constraint
 }
 
-func (b NegationConstraint) Check(currentVertex VertexWrapper, nextCost map[string]CostEntry) bool {
+func (b NegationConstraint) Check(currentVertex *VertexWrapper, nextCost map[string]CostEntry) bool {
 	return !b.Inner.Check(currentVertex, nextCost)
 }
 
@@ -19,7 +19,7 @@ type ForAllConstraint struct {
 	Constraints []Constraint
 }
 
-func CheckAllConstraints(currentVertex VertexWrapper, nextCost CostEntry, key string, constraintMap map[string][]Constraint) bool {
+func CheckAllConstraints(currentVertex *VertexWrapper, nextCost CostEntry, key string, constraintMap map[string][]Constraint) bool {
 	cost := map[string]CostEntry{key: nextCost}
 	constraints, ok := constraintMap[key]
 	if !ok {
@@ -33,7 +33,7 @@ func CheckAllConstraints(currentVertex VertexWrapper, nextCost CostEntry, key st
 	return true
 }
 
-func (b ForAllConstraint) Check(currentVertex VertexWrapper, nextCost map[string]CostEntry) bool {
+func (b ForAllConstraint) Check(currentVertex *VertexWrapper, nextCost map[string]CostEntry) bool {
 	constraintMap := map[string][]Constraint{b.Key: b.Constraints}
 	return CheckAllConstraints(currentVertex, nextCost[b.Key], b.Key, constraintMap)
 }
@@ -43,7 +43,7 @@ type ForEachConstraint struct {
 	Constraints []Constraint
 }
 
-func CheckAnyConstraints(currentVertex VertexWrapper, nextCost CostEntry, key string, constraintMap map[string][]Constraint) bool {
+func CheckAnyConstraints(currentVertex *VertexWrapper, nextCost CostEntry, key string, constraintMap map[string][]Constraint) bool {
 	cost := map[string]CostEntry{key: nextCost}
 	constraints, ok := constraintMap[key]
 	if !ok {
@@ -57,7 +57,7 @@ func CheckAnyConstraints(currentVertex VertexWrapper, nextCost CostEntry, key st
 	return false
 }
 
-func (b ForEachConstraint) Check(currentVertex VertexWrapper, nextCost map[string]CostEntry) bool {
+func (b ForEachConstraint) Check(currentVertex *VertexWrapper, nextCost map[string]CostEntry) bool {
 	constraintMap := map[string][]Constraint{b.Key: b.Constraints}
 	return CheckAnyConstraints(currentVertex, nextCost[b.Key], b.Key, constraintMap)
 }

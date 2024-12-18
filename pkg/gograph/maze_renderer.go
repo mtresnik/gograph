@@ -28,7 +28,7 @@ func (m *LiveMazeRenderer) Build() {
 	m.Generator.Build(m.Request)
 }
 
-func (m *LiveMazeRenderer) OnMazeUpdated(response MazeGeneratorResponse) {
+func (m *LiveMazeRenderer) Update(response MazeGeneratorResponse) {
 	internalMazeRenderer := MazeRenderer{CellSize: m.CellSize, VisitedColor: m.VisitedColor, Request: m.Request, Generator: m.Generator}
 	frame := internalMazeRenderer.RenderFrame(response)
 	m.Frames = append(m.Frames, frame)

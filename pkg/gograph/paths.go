@@ -1,13 +1,38 @@
 package gograph
 
-import "hash/fnv"
+import (
+	"github.com/mtresnik/gomath/pkg/gomath"
+	"hash/fnv"
+)
 
 type Path interface {
 	GetEdges() []Edge
-	GetCost() float64
 	Length() int
 	Hash() int64
 	Id() int64
+}
+
+func GetPathCost(path Path, pCostFunctions *map[string]CostFunction) map[string]CostEntry {
+	costFunctions, initialCosts := GenerateInitialCosts(pCostFunctions)
+	if path.Length() == 0 {
+		return initialCosts
+	}
+	startWrapper := NewVertexWrapper(ToVertex(path.GetEdges()[0].From()), initialCosts)
+	var curr = startWrapper
+	for _, edge := range path.GetEdges() {
+		toVertex := ToVertex(edge.To())
+		nextCosts := GenerateNextCosts(curr, toVertex, costFunctions)
+		curr = NewVertexWrapper(toVertex, nextCosts)
+	}
+	return curr.Costs
+}
+
+func GetPathDistance(path Path, distanceFunction ...gomath.DistanceFunction) float64 {
+	sum := 0.0
+	for _, edge := range path.GetEdges() {
+		sum += edge.Distance(distanceFunction...)
+	}
+	return sum
 }
 
 func PathHashOrId(path Path) int64 {
@@ -19,13 +44,12 @@ func PathHashOrId(path Path) int64 {
 
 type SimplePath struct {
 	Edges []Edge
-	Cost  float64
 	id    int64
 	hash  int64
 }
 
-func NewSimplePath(edges []Edge, cost float64) *SimplePath {
-	return &SimplePath{edges, cost, -1, -1}
+func NewSimplePath(edges []Edge) *SimplePath {
+	return &SimplePath{edges, -1, -1}
 }
 
 func (p *SimplePath) Length() int {
@@ -34,10 +58,6 @@ func (p *SimplePath) Length() int {
 
 func (p *SimplePath) GetEdges() []Edge {
 	return p.Edges
-}
-
-func (p *SimplePath) GetCost() float64 {
-	return p.Cost
 }
 
 func (p *SimplePath) Hash() int64 {

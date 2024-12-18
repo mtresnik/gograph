@@ -12,12 +12,12 @@ type MazeGeneratorRequest struct {
 }
 
 type MazeUpdateListener interface {
-	OnMazeUpdated(response MazeGeneratorResponse)
+	Update(response MazeGeneratorResponse)
 }
 
 func VisitMazeUpdateListeners(listeners []MazeUpdateListener, response MazeGeneratorResponse) {
 	for _, listener := range listeners {
-		listener.OnMazeUpdated(response)
+		listener.Update(response)
 	}
 }
 

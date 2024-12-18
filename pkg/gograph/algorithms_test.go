@@ -16,14 +16,10 @@ func TestBFS_Evaluate(t *testing.T) {
 	startVertex := vertices[random.Intn(len(vertices))]
 	endVertex := vertices[random.Intn(len(vertices))]
 	bfs := BFS{}
-	response, err1 := bfs.Evaluate(RoutingRequest{
+	response := bfs.Evaluate(RoutingAlgorithmRequest{
 		Start:       startVertex,
 		Destination: endVertex,
 	})
-	if err1 != nil {
-		t.Error(err1)
-		return
-	}
 	renderer := NewGraphRenderer(1250, 1250)
 	renderer.AddGraph(graph)
 	renderer.AddPath(response.Path)

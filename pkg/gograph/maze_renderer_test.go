@@ -37,7 +37,7 @@ func testMazeRenderer_Build(t *testing.T) {
 }
 
 func testMazeRenderer_RenderFrames(t *testing.T) {
-	request := NewMazeGeneratorRequest(50, 50)
+	request := NewMazeGeneratorRequest(10, 10)
 	renderer := LiveMazeRenderer{
 		CellSize:     20,
 		VisitedColor: &color.RGBA{R: 111, G: 111, B: 255, A: 255},
