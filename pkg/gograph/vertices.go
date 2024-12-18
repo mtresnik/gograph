@@ -20,6 +20,7 @@ type Vertex interface {
 	Hash() int64
 	GetEdge(to Vertex) Edge
 	AddEdge(edge Edge)
+	RemoveEdge(edge Edge)
 }
 
 func GetEdge(from Vertex, to Vertex) Edge {
@@ -153,6 +154,15 @@ func (v *SimpleVertex) AddEdge(edge Edge) {
 	v.Edges = append(v.Edges, edge)
 }
 
+func (v *SimpleVertex) RemoveEdge(edge Edge) {
+	for i, e := range v.Edges {
+		if e.Hash() == edge.Hash() {
+			v.Edges = append(v.Edges[:i], v.Edges[i+1:]...)
+			return
+		}
+	}
+}
+
 type VertexWrapper struct {
 	Previous *VertexWrapper
 	Inner    Vertex
@@ -210,4 +220,8 @@ func (v *VertexWrapper) GetEdge(to Vertex) Edge {
 
 func (v *VertexWrapper) AddEdge(edge Edge) {
 	v.Inner.AddEdge(edge)
+}
+
+func (v *VertexWrapper) RemoveEdge(edge Edge) {
+	v.Inner.RemoveEdge(edge)
 }

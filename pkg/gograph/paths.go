@@ -10,6 +10,7 @@ type Path interface {
 	Length() int
 	Hash() int64
 	Id() int64
+	Wrap() Path
 }
 
 func GetPathCost(path Path, pCostFunctions *map[string]CostFunction) map[string]CostEntry {
@@ -82,4 +83,12 @@ func (p *SimplePath) Hash() int64 {
 
 func (p *SimplePath) Id() int64 {
 	return p.id
+}
+
+func (p *SimplePath) Wrap() Path {
+	if ToVertex(p.Edges[0].From()).Hash() == ToVertex(p.Edges[len(p.Edges)-1].To()).Hash() {
+		return p
+	}
+	p.Edges = append(p.Edges, NewEdge(p.Edges[len(p.Edges)-1].To(), p.Edges[0].From()))
+	return p
 }

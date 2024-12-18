@@ -10,7 +10,7 @@ import (
 
 func TestBFS_Evaluate(t *testing.T) {
 	mazeResponse := AldousBroderMazeGenerator{}.Build(NewMazeGeneratorRequest(25, 25))
-	graph := MazeToGraphProvider{}.Build(mazeResponse.Maze)
+	graph := MazeToGraphProvider{mazeResponse.Maze}.Build()
 	random := rand.New(rand.NewSource(time.Now().UnixNano()))
 	vertices := graph.GetVertices()
 	startVertex := vertices[random.Intn(len(vertices))]
