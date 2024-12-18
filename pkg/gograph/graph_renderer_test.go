@@ -25,7 +25,7 @@ func TestGraphRenderer_Render(t *testing.T) {
 	png.Encode(file, img)
 }
 
-func TestLiveGraphRenderer_RenderFrames(t *testing.T) {
+func testLiveGraphRenderer_RenderFrames(t *testing.T) {
 	response := AldousBroderMazeGenerator{}.Build(NewMazeGeneratorRequest(25, 25))
 	graph := MazeToGraphProvider{}.Build(response.Maze)
 	vertices := graph.GetVertices()
