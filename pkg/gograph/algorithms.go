@@ -255,7 +255,7 @@ var AStar RoutingAlgorithm = func(parameters RoutingAlgorithmRequest) RoutingAlg
 
 	explorationFactor := parameters.ExplorationFactor
 	if explorationFactor == 0 {
-		explorationFactor = math.Max(costCombiner(GenerateNextCosts(startWrapper, destination, costFunctions)).Current/2.0, 5.0)
+		explorationFactor = math.Pow(math.Max(costCombiner(GenerateNextCosts(startWrapper, destination, costFunctions)).Current, 2.0), 5.0)
 	}
 	open := &PriorityQueue{}
 	heap.Init(open)
@@ -280,13 +280,13 @@ var AStar RoutingAlgorithm = func(parameters RoutingAlgorithmRequest) RoutingAlg
 				best = NewVertexWrapper(curr.Inner, curr.Costs, costCombiner)
 				best.Previous = curr.Previous
 				bestCombined = currCombined
-			}
-			if len(updateListeners) > 0 {
-				VisitRoutingAlgorithmUpdateListeners(updateListeners, RoutingAlgorithmResponse{
-					best.Costs,
-					NewSimplePath(Backtrack(best)),
-					visited,
-					false})
+				if len(updateListeners) > 0 {
+					VisitRoutingAlgorithmUpdateListeners(updateListeners, RoutingAlgorithmResponse{
+						best.Costs,
+						NewSimplePath(Backtrack(best)),
+						visited,
+						false})
+				}
 			}
 			if curr.Hash() == destination.Hash() {
 				break
