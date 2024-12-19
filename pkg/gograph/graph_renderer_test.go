@@ -11,7 +11,7 @@ import (
 )
 
 func TestGraphRenderer_Render(t *testing.T) {
-	response := AldousBroderMazeGenerator{}.Build(NewMazeGeneratorRequest(25, 25))
+	response := AldousBroderMazeGenerator(NewMazeGeneratorRequest(25, 25))
 	graph := MazeToGraphProvider{response.Maze}.Build()
 	renderer := NewGraphRenderer(1250, 1250)
 	renderer.AddGraph(graph)
@@ -42,18 +42,18 @@ func testLiveGraphRenderer_RenderFrames(t *testing.T) {
 		startVertex = vertices[random.Intn(len(vertices))]
 		endVertex = vertices[random.Intn(len(vertices))]
 	}
-	bfs := BFS{}
+	bfs := BFS
 	println("start:", gomath.SpatialString(startVertex), "\tend:", gomath.SpatialString(endVertex))
-	println("distance:", bfs.Evaluate(RoutingAlgorithmRequest{
+	println("distance:", bfs(RoutingAlgorithmRequest{
 		Start:         startVertex,
 		Destination:   endVertex,
-		Algorithm:     &bfs,
+		Algorithm:     bfs,
 		CostFunctions: &map[string]CostFunction{COST_TYPE_DISTANCE: ManhattanDistanceCostFunction{}},
 	}).Path.Length())
 	renderer := NewLiveGraphRenderer(graph, RoutingAlgorithmRequest{
 		Start:       startVertex,
 		Destination: endVertex,
-		Algorithm:   &bfs,
+		Algorithm:   bfs,
 	}, 1000, 1000)
 	g := renderer.RenderFrames()
 	f, err := os.Create("TestLiveGraphRenderer_RenderFrames.gif")

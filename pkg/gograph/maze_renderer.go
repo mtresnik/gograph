@@ -25,7 +25,7 @@ type LiveMazeRenderer struct {
 
 func (m *LiveMazeRenderer) Build() {
 	m.Request.MazeUpdateListeners = &[]MazeUpdateListener{m}
-	m.Generator.Build(m.Request)
+	m.Generator(m.Request)
 }
 
 func (m *LiveMazeRenderer) Update(response MazeGeneratorResponse) {
@@ -57,7 +57,7 @@ type MazeRenderer struct {
 }
 
 func (m MazeRenderer) Build() *image.Paletted {
-	mazeResponse := m.Generator.Build(m.Request)
+	mazeResponse := m.Generator(m.Request)
 	return m.RenderFrame(mazeResponse)
 }
 

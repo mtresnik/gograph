@@ -14,7 +14,7 @@ func testMazeRenderer_Build(t *testing.T) {
 		CellSize:     20,
 		VisitedColor: nil,
 		Request:      request,
-		Generator:    AldousBroderMazeGenerator{},
+		Generator:    AldousBroderMazeGenerator,
 	}.Build()
 	// Display the image in a new window
 	images := []*image.Paletted{img}
@@ -42,7 +42,7 @@ func testMazeRenderer_RenderFrames(t *testing.T) {
 		CellSize:     20,
 		VisitedColor: &color.RGBA{R: 111, G: 111, B: 255, A: 255},
 		Request:      request,
-		Generator:    AldousBroderMazeGenerator{},
+		Generator:    AldousBroderMazeGenerator,
 		Frames:       []*image.Paletted{},
 	}
 	g := renderer.RenderFrames()

@@ -6,7 +6,7 @@ import (
 )
 
 func TestMazeToGraphProvider_Build(t *testing.T) {
-	response := AldousBroderMazeGenerator{}.Build(NewMazeGeneratorRequest(10, 10))
+	response := AldousBroderMazeGenerator(NewMazeGeneratorRequest(10, 10))
 	graph := MazeToGraphProvider{response.Maze}.Build()
 	print("Num Vertices:", len(graph.GetVertices()), "\tNum Edges:", len(graph.GetEdges()))
 }

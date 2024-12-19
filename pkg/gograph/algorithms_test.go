@@ -9,14 +9,14 @@ import (
 )
 
 func TestBFS_Evaluate(t *testing.T) {
-	mazeResponse := AldousBroderMazeGenerator{}.Build(NewMazeGeneratorRequest(25, 25))
+	mazeResponse := AldousBroderMazeGenerator(NewMazeGeneratorRequest(25, 25))
 	graph := MazeToGraphProvider{mazeResponse.Maze}.Build()
 	random := rand.New(rand.NewSource(time.Now().UnixNano()))
 	vertices := graph.GetVertices()
 	startVertex := vertices[random.Intn(len(vertices))]
 	endVertex := vertices[random.Intn(len(vertices))]
-	bfs := BFS{}
-	response := bfs.Evaluate(RoutingAlgorithmRequest{
+	bfs := BFS
+	response := bfs(RoutingAlgorithmRequest{
 		Start:       startVertex,
 		Destination: endVertex,
 	})

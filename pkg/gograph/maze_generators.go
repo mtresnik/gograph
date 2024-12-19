@@ -34,13 +34,9 @@ func NewMazeGeneratorRequest(rows, cols int) MazeGeneratorRequest {
 	}
 }
 
-type MazeGenerator interface {
-	Build(request MazeGeneratorRequest) MazeGeneratorResponse
-}
+type MazeGenerator func(request MazeGeneratorRequest) MazeGeneratorResponse
 
-type AldousBroderMazeGenerator struct{}
-
-func (a AldousBroderMazeGenerator) Build(request MazeGeneratorRequest) MazeGeneratorResponse {
+var AldousBroderMazeGenerator = func(request MazeGeneratorRequest) MazeGeneratorResponse {
 	maze := NewMaze(request.Rows, request.Cols)
 
 	mazeUpdateListeners := make([]MazeUpdateListener, 0)
