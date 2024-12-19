@@ -83,11 +83,13 @@ var BFS RoutingAlgorithm = func(parameters RoutingAlgorithmRequest) RoutingAlgor
 			best.Previous = curr.Previous
 			bestCombined = currCombined
 		}
-		VisitRoutingAlgorithmUpdateListeners(updateListeners, RoutingAlgorithmResponse{
-			best.Costs,
-			NewSimplePath(Backtrack(best)),
-			visited,
-			false})
+		if len(updateListeners) > 0 {
+			VisitRoutingAlgorithmUpdateListeners(updateListeners, RoutingAlgorithmResponse{
+				best.Costs,
+				NewSimplePath(Backtrack(best)),
+				visited,
+				false})
+		}
 		queue = queue[1:]
 		visited[VertexHashOrId(curr)] = true
 		if curr.Hash() == destination.Hash() {
@@ -176,11 +178,13 @@ var DFS RoutingAlgorithm = func(parameters RoutingAlgorithmRequest) RoutingAlgor
 			best.Previous = curr.Previous
 			bestCombined = currCombined
 		}
-		VisitRoutingAlgorithmUpdateListeners(updateListeners, RoutingAlgorithmResponse{
-			best.Costs,
-			NewSimplePath(Backtrack(best)),
-			visited,
-			false})
+		if len(updateListeners) > 0 {
+			VisitRoutingAlgorithmUpdateListeners(updateListeners, RoutingAlgorithmResponse{
+				best.Costs,
+				NewSimplePath(Backtrack(best)),
+				visited,
+				false})
+		}
 		stack = stack[:len(stack)-1]
 		visited[VertexHashOrId(curr)] = true
 		if curr.Hash() == destination.Hash() {
@@ -277,11 +281,13 @@ var AStar RoutingAlgorithm = func(parameters RoutingAlgorithmRequest) RoutingAlg
 				best.Previous = curr.Previous
 				bestCombined = currCombined
 			}
-			VisitRoutingAlgorithmUpdateListeners(updateListeners, RoutingAlgorithmResponse{
-				best.Costs,
-				NewSimplePath(Backtrack(best)),
-				visited,
-				false})
+			if len(updateListeners) > 0 {
+				VisitRoutingAlgorithmUpdateListeners(updateListeners, RoutingAlgorithmResponse{
+					best.Costs,
+					NewSimplePath(Backtrack(best)),
+					visited,
+					false})
+			}
 			if curr.Hash() == destination.Hash() {
 				break
 			}
