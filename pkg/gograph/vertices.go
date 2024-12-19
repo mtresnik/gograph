@@ -163,10 +163,29 @@ type VertexWrapper struct {
 	Inner    Vertex
 	Next     *VertexWrapper
 	Costs    map[string]CostEntry
+	Combined *CostEntry
 }
 
-func NewVertexWrapper(inner Vertex, costs map[string]CostEntry) *VertexWrapper {
-	return &VertexWrapper{Inner: inner, Costs: costs}
+func NewVertexWrapper(inner Vertex, costs map[string]CostEntry, pCostCombiner ...CostCombiner) *VertexWrapper {
+	costCombiner := MultiplicativeCostCombiner
+	if len(pCostCombiner) > 0 {
+		costCombiner = pCostCombiner[0]
+	}
+	combined := costCombiner(costs)
+	return &VertexWrapper{Inner: inner, Costs: costs, Combined: &combined}
+}
+
+func (v *VertexWrapper) GetCombined(pCostCombiner ...CostCombiner) *CostEntry {
+	if v.Combined != nil {
+		return v.Combined
+	}
+	costCombiner := MultiplicativeCostCombiner
+	if len(pCostCombiner) > 0 {
+		costCombiner = pCostCombiner[0]
+	}
+	combined := costCombiner(v.Costs)
+	v.Combined = &combined
+	return &combined
 }
 
 func (v *VertexWrapper) GetValues() []float64 {

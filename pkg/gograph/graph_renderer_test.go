@@ -26,7 +26,7 @@ func TestGraphRenderer_Render(t *testing.T) {
 }
 
 func testLiveGraphRenderer_RenderFrames(t *testing.T) {
-	size := 20
+	size := 40
 	randomPruneProvider := RandomPruneGraphProvider{BoundedGraphProvider{
 		BoundingBox: gomath.BoundingBox{10, 10, 20, 20},
 		Width:       size,
@@ -37,24 +37,18 @@ func testLiveGraphRenderer_RenderFrames(t *testing.T) {
 	random := rand.New(rand.NewSource(time.Now().UnixNano()))
 	startVertex := vertices[random.Intn(len(vertices))]
 	endVertex := vertices[random.Intn(len(vertices))]
-	distanceCheck := gomath.ManhattanDistance
-	for distanceCheck(startVertex, endVertex) < float64(size/2) {
-		startVertex = vertices[random.Intn(len(vertices))]
-		endVertex = vertices[random.Intn(len(vertices))]
-	}
-	bfs := BFS
+	algorithm := AStar
 	println("start:", gomath.SpatialString(startVertex), "\tend:", gomath.SpatialString(endVertex))
-	println("distance:", bfs(RoutingAlgorithmRequest{
-		Start:         startVertex,
-		Destination:   endVertex,
-		Algorithm:     bfs,
-		CostFunctions: &map[string]CostFunction{COST_TYPE_DISTANCE: ManhattanDistanceCostFunction{}},
+	println("distance:", algorithm(RoutingAlgorithmRequest{
+		Start:       startVertex,
+		Destination: endVertex,
+		Algorithm:   algorithm,
 	}).Path.Length())
 	renderer := NewLiveGraphRenderer(graph, RoutingAlgorithmRequest{
 		Start:       startVertex,
 		Destination: endVertex,
-		Algorithm:   bfs,
-	}, 1000, 1000)
+		Algorithm:   algorithm,
+	}, size*30, size*30)
 	g := renderer.RenderFrames()
 	f, err := os.Create("TestLiveGraphRenderer_RenderFrames.gif")
 	if err != nil {

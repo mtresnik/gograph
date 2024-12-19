@@ -233,6 +233,7 @@ type LiveGraphRenderer struct {
 	Padding       int
 	lineThickness int
 	pointRadius   int
+	delay         int
 }
 
 func NewLiveGraphRenderer(graph Graph, request RoutingAlgorithmRequest, width, height int) *LiveGraphRenderer {
@@ -245,6 +246,7 @@ func NewLiveGraphRenderer(graph Graph, request RoutingAlgorithmRequest, width, h
 		Padding:       50,
 		lineThickness: 5,
 		pointRadius:   10,
+		delay:         2,
 	}
 }
 
@@ -292,6 +294,7 @@ func (g *LiveGraphRenderer) Update(response RoutingAlgorithmResponse) {
 	img := internalGraphRenderer.Render()
 	paletted := goutils.ConvertImageToPaletted(img)
 	g.Frames = append(g.Frames, paletted)
+	println("Frame: ", len(g.Frames))
 }
 
 func (g *LiveGraphRenderer) RenderFrames() *gif.GIF {
@@ -302,7 +305,7 @@ func (g *LiveGraphRenderer) RenderFrames() *gif.GIF {
 	images := g.Frames
 	delays := make([]int, len(images))
 	for i := 0; i < len(images); i++ {
-		delays[i] = 5
+		delays[i] = g.delay
 	}
 	retGif := &gif.GIF{
 		Image:     images,

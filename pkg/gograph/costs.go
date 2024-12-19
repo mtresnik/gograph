@@ -81,38 +81,6 @@ func GenerateCostDifference(one, two map[string]CostEntry) map[string]CostEntry 
 	return delta
 }
 
-func MultiplyCosts(costs map[string]CostEntry) CostEntry {
-	accumulated := 1.0
-	current := 1.0
-	total := 1.0
-	for _, cost := range costs {
-		accumulated *= cost.Accumulated
-		current *= cost.Current
-		total *= cost.Total
-	}
-	return CostEntry{
-		Accumulated: accumulated,
-		Current:     current,
-		Total:       total,
-	}
-}
-
-func AddCosts(costs map[string]CostEntry) CostEntry {
-	accumulated := 0.0
-	current := 0.0
-	total := 0.0
-	for _, cost := range costs {
-		accumulated += cost.Accumulated
-		current += cost.Current
-		total += cost.Total
-	}
-	return CostEntry{
-		Accumulated: accumulated,
-		Current:     current,
-		Total:       total,
-	}
-}
-
 func GetCostOrEvaluate(currWrapper *VertexWrapper, toVertex Vertex, key string, costFunctions map[string]CostFunction) float64 {
 	edge := GetEdge(currWrapper.Inner, toVertex)
 	if edge == nil {
@@ -209,50 +177,60 @@ func (f AbsoluteValueCostFunction) Eval(vertexWrapper *VertexWrapper, to gomath.
 	return math.Abs(f.Inner.Eval(vertexWrapper, to))
 }
 
-type CostCombiner interface {
-	Calculate(costs map[string]CostEntry) float64
-}
+type CostCombiner func(costs map[string]CostEntry) CostEntry
 
-type SumCostCombiner struct{}
-
-func (c SumCostCombiner) Calculate(costs map[string]CostEntry) float64 {
-	total := 0.0
+var SumCostCombiner CostCombiner = func(costs map[string]CostEntry) CostEntry {
+	total := CostEntry{
+		Accumulated: 0,
+		Current:     0,
+		Total:       0,
+	}
 	for _, cost := range costs {
-		total += cost.Total
+		total.Accumulated += cost.Accumulated
+		total.Current += cost.Current
+		total.Total += cost.Total
 	}
 	return total
 }
 
-type MinCostCombiner struct{}
-
-func (c MinCostCombiner) Calculate(costs map[string]CostEntry) float64 {
-	minCost := math.MaxFloat64
+var MinCostCombiner CostCombiner = func(costs map[string]CostEntry) CostEntry {
+	minCost := CostEntry{
+		Accumulated: math.MaxFloat64,
+		Current:     math.MaxFloat64,
+		Total:       math.MaxFloat64,
+	}
 	for _, cost := range costs {
-		if cost.Total < minCost {
-			minCost = cost.Total
-		}
+		minCost.Accumulated = math.Min(minCost.Accumulated, cost.Accumulated)
+		minCost.Current = math.Min(minCost.Current, cost.Current)
+		minCost.Total = math.Min(minCost.Total, cost.Total)
 	}
 	return minCost
 }
 
-type MaxCostCombiner struct{}
-
-func (c MaxCostCombiner) Calculate(costs map[string]CostEntry) float64 {
-	maxCost := 0.0
+var MaxCostCombiner CostCombiner = func(costs map[string]CostEntry) CostEntry {
+	maxCost := CostEntry{
+		Accumulated: -math.MaxFloat64 + 1,
+		Current:     -math.MaxFloat64 + 1,
+		Total:       -math.MaxFloat64 + 1,
+	}
 	for _, cost := range costs {
-		if cost.Total > maxCost {
-			maxCost = cost.Total
-		}
+		maxCost.Accumulated = math.Max(maxCost.Accumulated, cost.Accumulated)
+		maxCost.Current = math.Max(maxCost.Current, cost.Current)
+		maxCost.Total = math.Max(maxCost.Total, cost.Total)
 	}
 	return maxCost
 }
 
-type MultiplicativeCostCombiner struct{}
-
-func (c MultiplicativeCostCombiner) Calculate(costs map[string]CostEntry) float64 {
-	total := 1.0
+var MultiplicativeCostCombiner CostCombiner = func(costs map[string]CostEntry) CostEntry {
+	total := CostEntry{
+		Accumulated: 1,
+		Current:     1,
+		Total:       1,
+	}
 	for _, cost := range costs {
-		total *= cost.Total
+		total.Accumulated *= cost.Accumulated
+		total.Current *= cost.Current
+		total.Total *= cost.Total
 	}
 	return total
 }

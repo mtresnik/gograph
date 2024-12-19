@@ -5,6 +5,7 @@ import (
 	"github.com/mtresnik/gomath/pkg/gomath"
 	"hash/fnv"
 	"math"
+	"sort"
 	"strings"
 )
 
@@ -98,6 +99,23 @@ func Contract(firstEdge gomath.Segment, edges ...gomath.Segment) gomath.Segment 
 		id = asEdge.Id()
 	}
 	return PolyEdge{Points: allPoints, id: id}
+}
+
+func Theta(e Edge) float64 {
+	return gomath.Theta(gomath.ToPoint(e.From()), gomath.ToPoint(e.To()))
+}
+
+func SortEdges(edges []Edge, comparator func(i, j int) bool) []Edge {
+	cloned := make([]Edge, len(edges))
+	copy(cloned, edges)
+	sort.Slice(cloned, comparator)
+	return cloned
+}
+
+func SortEdgesByTheta(edges []Edge) []Edge {
+	return SortEdges(edges, func(i, j int) bool {
+		return Theta(edges[i]) < Theta(edges[j])
+	})
 }
 
 // </editor-fold>
