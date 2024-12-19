@@ -33,15 +33,10 @@ func VisitRoutingAlgorithmUpdateListeners(listeners []RoutingAlgorithmUpdateList
 	}
 }
 
-type RoutingAlgorithm interface {
-	Evaluate(parameters RoutingAlgorithmRequest) RoutingAlgorithmResponse
-}
-
-type BFS struct {
-}
+type RoutingAlgorithm func(parameters RoutingAlgorithmRequest) RoutingAlgorithmResponse
 
 func EvaluateRoutingAlgorithm(parameters RoutingAlgorithmRequest) RoutingAlgorithmResponse {
-	return parameters.Algorithm.Evaluate(parameters)
+	return parameters.Algorithm(parameters)
 }
 
 func Backtrack(vertex *VertexWrapper) []Edge {
@@ -57,7 +52,7 @@ func Backtrack(vertex *VertexWrapper) []Edge {
 	return path
 }
 
-func (b *BFS) Evaluate(parameters RoutingAlgorithmRequest) RoutingAlgorithmResponse {
+var BFS RoutingAlgorithm = func(parameters RoutingAlgorithmRequest) RoutingAlgorithmResponse {
 	start := parameters.Start
 	destination := parameters.Destination
 	constraints := parameters.Constraints
@@ -146,16 +141,10 @@ func (b *BFS) Evaluate(parameters RoutingAlgorithmRequest) RoutingAlgorithmRespo
 	return response
 }
 
-type DFS struct {
-}
-
-func (b *DFS) Evaluate(parameters RoutingAlgorithmRequest) (RoutingAlgorithmResponse, *error) {
+var DFS RoutingAlgorithm = func(parameters RoutingAlgorithmRequest) RoutingAlgorithmResponse {
 	panic("implement me")
 }
 
-type AStar struct {
-}
-
-func (b *AStar) Evaluate(parameters RoutingAlgorithmRequest) (RoutingAlgorithmResponse, *error) {
+var AStar RoutingAlgorithm = func(parameters RoutingAlgorithmRequest) RoutingAlgorithmResponse {
 	panic("implement me")
 }
