@@ -246,7 +246,7 @@ func NewLiveGraphRenderer(graph Graph, request RoutingAlgorithmRequest, width, h
 		Padding:       50,
 		lineThickness: 5,
 		pointRadius:   10,
-		delay:         2,
+		delay:         10,
 	}
 }
 
@@ -310,7 +310,7 @@ func (g *LiveGraphRenderer) RenderFrames() *gif.GIF {
 	retGif := &gif.GIF{
 		Image:     images,
 		Delay:     delays,
-		LoopCount: -1,
+		LoopCount: 0,
 	}
 	return retGif
 

@@ -64,8 +64,12 @@ var BFS RoutingAlgorithm = func(parameters RoutingAlgorithmRequest) RoutingAlgor
 	if parameters.CostCombiner != nil {
 		costCombiner = *parameters.CostCombiner
 	}
-	startWrapper := NewVertexWrapper(start, initialCosts)
+	startWrapper := NewVertexWrapper(start, initialCosts, costCombiner)
 	startWrapper.Previous = nil
+	startWrapper.Combined.Accumulated = 0
+	startWrapper.Combined.Current = costCombiner(GenerateNextCosts(startWrapper, destination, costFunctions)).Current
+	startWrapper.Combined.Total = costCombiner(GenerateNextCosts(startWrapper, destination, costFunctions)).Current
+
 	queue := []*VertexWrapper{startWrapper}
 	visited := make(map[int64]bool)
 	var curr *VertexWrapper
@@ -77,21 +81,24 @@ var BFS RoutingAlgorithm = func(parameters RoutingAlgorithmRequest) RoutingAlgor
 	}
 	for len(queue) > 0 {
 		curr = queue[0]
+		queue = queue[1:]
+		if goutils.SetContains(visited, VertexHashOrId(curr)) {
+			continue
+		}
+		visited[VertexHashOrId(curr)] = true
 		currCombined := costCombiner(GenerateNextCosts(curr, destination, costFunctions)).Current
 		if currCombined < bestCombined {
-			best = NewVertexWrapper(curr.Inner, curr.Costs)
+			best = NewVertexWrapper(curr.Inner, curr.Costs, costCombiner)
 			best.Previous = curr.Previous
 			bestCombined = currCombined
+			if len(updateListeners) > 0 {
+				VisitRoutingAlgorithmUpdateListeners(updateListeners, RoutingAlgorithmResponse{
+					best.Costs,
+					NewSimplePath(Backtrack(best)),
+					visited,
+					false})
+			}
 		}
-		if len(updateListeners) > 0 {
-			VisitRoutingAlgorithmUpdateListeners(updateListeners, RoutingAlgorithmResponse{
-				best.Costs,
-				NewSimplePath(Backtrack(best)),
-				visited,
-				false})
-		}
-		queue = queue[1:]
-		visited[VertexHashOrId(curr)] = true
 		if curr.Hash() == destination.Hash() {
 			break
 		}
@@ -99,8 +106,9 @@ var BFS RoutingAlgorithm = func(parameters RoutingAlgorithmRequest) RoutingAlgor
 			toVertex := ToVertex(edge.To())
 			hashOrId := VertexHashOrId(toVertex)
 			nextCosts := GenerateNextCosts(curr, toVertex, costFunctions)
+			successor := NewVertexWrapper(toVertex, nextCosts, costCombiner)
+			successor.Combined.Total = successor.Combined.Accumulated
 			if !goutils.SetContains(visited, hashOrId) {
-				successor := NewVertexWrapper(toVertex, nextCosts)
 				pass := true
 				if constraints != nil {
 					keys := maps.Keys(*constraints)
@@ -117,24 +125,24 @@ var BFS RoutingAlgorithm = func(parameters RoutingAlgorithmRequest) RoutingAlgor
 				}
 				if pass {
 					previousWrapper := curr
-					successor.Previous = previousWrapper
-					queue = append(queue, successor)
-					visited[hashOrId] = true
+					g := curr.Combined.Accumulated + successor.Combined.Current
+					f := g
+					if successor.Previous == nil || g < successor.Combined.Accumulated {
+						successor.Previous = previousWrapper
+						successor.Combined.Accumulated = g
+						successor.Combined.Total = f
+						queue = append(queue, successor)
+					}
 				}
 			}
 		}
-		if len(queue) == 0 {
-			println("no path found, try relaxing the constraints")
-			return RoutingAlgorithmResponse{
-				best.Costs,
-				NewSimplePath(Backtrack(best)),
-				visited,
-				false}
-		}
-
 	}
+
 	edges := Backtrack(curr)
 	path := NewSimplePath(edges)
+	if len(edges) == 0 {
+		path = NewSimplePath(Backtrack(best))
+	}
 	finalCosts := initialCosts
 	if curr != nil {
 		finalCosts = curr.Costs
@@ -150,6 +158,38 @@ var BFS RoutingAlgorithm = func(parameters RoutingAlgorithmRequest) RoutingAlgor
 	return response
 }
 
+type PathState struct {
+	vertex        Vertex
+	edges         []Edge
+	nextEdgeIndex int
+	costs         map[string]CostEntry
+	accumulated   float64
+	current       float64
+	total         float64
+	previous      *PathState
+}
+
+func PathStateToVertexWrapper(state *PathState) *VertexWrapper {
+	ret := NewVertexWrapper(state.vertex, state.costs, MultiplicativeCostCombiner)
+	ret.Combined.Accumulated = state.accumulated
+	ret.Combined.Current = state.current
+	ret.Combined.Total = state.total
+	return ret
+}
+
+func NewPathState(vertex Vertex, costs map[string]CostEntry, accumulated, current, total float64, previous *PathState) *PathState {
+	return &PathState{
+		vertex:        vertex,
+		edges:         vertex.GetEdges(),
+		nextEdgeIndex: 0,
+		costs:         costs,
+		accumulated:   accumulated,
+		current:       current,
+		total:         total,
+		previous:      previous,
+	}
+}
+
 var DFS RoutingAlgorithm = func(parameters RoutingAlgorithmRequest) RoutingAlgorithmResponse {
 	start := parameters.Start
 	destination := parameters.Destination
@@ -159,74 +199,124 @@ var DFS RoutingAlgorithm = func(parameters RoutingAlgorithmRequest) RoutingAlgor
 	if parameters.CostCombiner != nil {
 		costCombiner = *parameters.CostCombiner
 	}
-	startWrapper := NewVertexWrapper(start, initialCosts)
-	startWrapper.Previous = nil
-	stack := []*VertexWrapper{startWrapper}
+
+	// Initialize the starting PathState
+	startCosts := GenerateNextCosts(nil, start, costFunctions)
+	startCombined := costCombiner(startCosts)
+	startState := NewPathState(
+		start,
+		startCosts,
+		0,
+		startCombined.Current,
+		startCombined.Current,
+		nil,
+	)
+
+	stack := []*PathState{startState}
 	visited := make(map[int64]bool)
-	var curr *VertexWrapper
+	var curr *PathState
 	bestCombined := math.MaxFloat64
-	var best = startWrapper
+	var best = startState
+
 	updateListeners := make([]RoutingAlgorithmUpdateListener, 0)
 	if parameters.UpdateListeners != nil {
 		updateListeners = *parameters.UpdateListeners
 	}
+
 	for len(stack) > 0 {
 		curr = stack[len(stack)-1]
-		currCombined := costCombiner(GenerateNextCosts(curr, destination, costFunctions)).Current
-		if currCombined < bestCombined {
-			best = NewVertexWrapper(curr.Inner, curr.Costs)
-			best.Previous = curr.Previous
-			bestCombined = currCombined
+
+		if curr.nextEdgeIndex >= len(curr.edges) {
+			stack = stack[:len(stack)-1]
+			continue
 		}
-		if len(updateListeners) > 0 {
-			VisitRoutingAlgorithmUpdateListeners(updateListeners, RoutingAlgorithmResponse{
-				best.Costs,
-				NewSimplePath(Backtrack(best)),
-				visited,
-				false})
+
+		vertexHash := VertexHashOrId(curr.vertex)
+		if !visited[vertexHash] {
+			visited[vertexHash] = true
+
+			currCombined := costCombiner(GenerateNextCosts(PathStateToVertexWrapper(curr), destination, costFunctions)).Current
+			if currCombined < bestCombined {
+				best = NewPathState(
+					curr.vertex,
+					curr.costs,
+					curr.accumulated,
+					curr.current,
+					curr.total,
+					curr.previous,
+				)
+				bestCombined = currCombined
+				if len(updateListeners) > 0 {
+					VisitRoutingAlgorithmUpdateListeners(updateListeners, RoutingAlgorithmResponse{
+						best.costs,
+						NewSimplePath(BacktrackPathState(best)),
+						visited,
+						false,
+					})
+				}
+			}
+
 		}
-		stack = stack[:len(stack)-1]
-		visited[VertexHashOrId(curr)] = true
-		if curr.Hash() == destination.Hash() {
+
+		if curr.vertex.Hash() == destination.Hash() {
 			break
 		}
-		// sorted := SortEdgesByTheta(curr.Inner.GetEdges())
-		sorted := curr.Inner.GetEdges()
-		for _, edge := range sorted {
-			toVertex := ToVertex(edge.To())
-			hashOrId := VertexHashOrId(toVertex)
-			nextCosts := GenerateNextCosts(curr, toVertex, costFunctions)
-			if !goutils.SetContains(visited, hashOrId) {
-				successor := NewVertexWrapper(toVertex, nextCosts)
-				pass := true
-				if constraints != nil {
-					keys := maps.Keys(*constraints)
-					for key := range keys {
-						_, constraintsExist := (*constraints)[key]
-						currCost, costExist := nextCosts[key]
-						if constraintsExist && costExist {
-							pass = CheckAllConstraints(curr, currCost, key, *constraints)
-							if !pass {
-								break
-							}
+
+		edge := curr.edges[curr.nextEdgeIndex]
+		curr.nextEdgeIndex++
+
+		toVertex := ToVertex(edge.To())
+		hashOrId := VertexHashOrId(toVertex)
+
+		if !visited[hashOrId] {
+			nextCosts := GenerateNextCosts(PathStateToVertexWrapper(curr), toVertex, costFunctions)
+			combined := costCombiner(nextCosts)
+
+			pass := true
+			if constraints != nil {
+				keys := maps.Keys(*constraints)
+				for key := range keys {
+					_, constraintsExist := (*constraints)[key]
+					currCost, costExist := nextCosts[key]
+					if constraintsExist && costExist {
+						pass = CheckAllConstraints(PathStateToVertexWrapper(curr), currCost, key, *constraints)
+						if !pass {
+							break
 						}
 					}
 				}
-				if pass {
-					previousWrapper := curr
-					successor.Previous = previousWrapper
-					stack = append(stack, successor)
-					visited[hashOrId] = true
-				}
+			}
+
+			if pass {
+				g := curr.accumulated + combined.Current
+				f := g
+
+				successor := NewPathState(
+					toVertex,
+					nextCosts,
+					g,
+					combined.Current,
+					f,
+					curr,
+				)
+
+				stack = append(stack, successor)
 			}
 		}
 	}
-	edges := Backtrack(curr)
+
+	// Build final response
+	edges := BacktrackPathState(curr)
 	path := NewSimplePath(edges)
+	if len(edges) == 0 {
+		path = NewSimplePath(BacktrackPathState(best))
+	}
+
 	finalCosts := initialCosts
 	if curr != nil {
-		finalCosts = curr.Costs
+		finalCosts = curr.costs
 	}
+
 	response := RoutingAlgorithmResponse{
 		Costs:     finalCosts,
 		Path:      path,
@@ -236,6 +326,25 @@ var DFS RoutingAlgorithm = func(parameters RoutingAlgorithmRequest) RoutingAlgor
 	VisitRoutingAlgorithmUpdateListeners(updateListeners, response)
 
 	return response
+}
+
+func BacktrackPathState(state *PathState) []Edge {
+	if state == nil {
+		return make([]Edge, 0)
+	}
+
+	path := make([]Edge, 0)
+	curr := state
+	for curr.previous != nil {
+		for _, edge := range curr.previous.vertex.GetEdges() {
+			if ToVertex(edge.To()).Hash() == curr.vertex.Hash() {
+				path = append([]Edge{edge}, path...)
+				break
+			}
+		}
+		curr = curr.previous
+	}
+	return path
 }
 
 var AStar RoutingAlgorithm = func(parameters RoutingAlgorithmRequest) RoutingAlgorithmResponse {
@@ -255,7 +364,7 @@ var AStar RoutingAlgorithm = func(parameters RoutingAlgorithmRequest) RoutingAlg
 
 	explorationFactor := parameters.ExplorationFactor
 	if explorationFactor == 0 {
-		explorationFactor = math.Pow(math.Max(costCombiner(GenerateNextCosts(startWrapper, destination, costFunctions)).Current, 2.0), 5.0)
+		explorationFactor = math.Max(costCombiner(GenerateNextCosts(startWrapper, destination, costFunctions)).Current*5.0, 5.0)
 	}
 	open := &PriorityQueue{}
 	heap.Init(open)
@@ -316,7 +425,7 @@ var AStar RoutingAlgorithm = func(parameters RoutingAlgorithmRequest) RoutingAlg
 						previousWrapper := curr
 						g := curr.Combined.Accumulated + successor.Combined.Current
 						h := costCombiner(GenerateNextCosts(successor, destination, costFunctions)).Current
-						f := g + explorationFactor*h
+						f := g * math.Pow(h+1.0, explorationFactor)
 						if successor.Previous == nil || g < successor.Combined.Accumulated {
 							successor.Previous = previousWrapper
 							successor.Combined.Accumulated = g

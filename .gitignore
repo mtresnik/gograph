@@ -10,7 +10,7 @@
 *.iml
 
 # UI output
-*.png
+Test*.png
 *.gif
 
 # Test binary, built with `go test -c`

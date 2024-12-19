@@ -26,7 +26,7 @@ func TestGraphRenderer_Render(t *testing.T) {
 }
 
 func testLiveGraphRenderer_RenderFrames(t *testing.T) {
-	size := 100
+	size := 50
 	randomPruneProvider := RandomPruneGraphProvider{BoundedGraphProvider{
 		BoundingBox: gomath.BoundingBox{10, 10, 20, 20},
 		Width:       size,

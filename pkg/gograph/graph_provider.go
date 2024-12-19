@@ -84,6 +84,15 @@ func (r RandomPruneGraphProvider) Build() Graph {
 	for _, edge := range toRemoveEdges {
 		graph.RemoveEdge(edge)
 	}
+	toRemoveVertices = make([]Vertex, 0)
+	for _, vertex := range graph.GetVertices() {
+		if len(vertex.GetEdges()) == 0 {
+			toRemoveVertices = append(toRemoveVertices, vertex)
+		}
+	}
+	for _, vertex := range toRemoveVertices {
+		graph.RemoveVertex(vertex)
+	}
 	return graph
 }
 
