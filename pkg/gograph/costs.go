@@ -137,19 +137,19 @@ type MultiCostFunction interface {
 type EuclideanDistanceCostFunction struct{}
 
 func (f EuclideanDistanceCostFunction) Eval(vertexWrapper *VertexWrapper, to gomath.Spatial) float64 {
-	return gomath.ToPoint(vertexWrapper.Inner).DistanceTo(gomath.ToPoint(to), gomath.EuclideanDistance{})
+	return gomath.ToPoint(vertexWrapper.Inner).DistanceTo(gomath.ToPoint(to), gomath.EuclideanDistance)
 }
 
 type HaversineDistanceCostFunction struct{}
 
 func (f HaversineDistanceCostFunction) Eval(vertexWrapper *VertexWrapper, to gomath.Spatial) float64 {
-	return gomath.ToPoint(vertexWrapper.Inner).DistanceTo(gomath.ToPoint(to), gomath.HaversineDistance{})
+	return gomath.ToPoint(vertexWrapper.Inner).DistanceTo(gomath.ToPoint(to), gomath.HaversineDistance)
 }
 
 type ManhattanDistanceCostFunction struct{}
 
 func (f ManhattanDistanceCostFunction) Eval(vertexWrapper *VertexWrapper, to gomath.Spatial) float64 {
-	return gomath.ToPoint(vertexWrapper.Inner).DistanceTo(gomath.ToPoint(to), gomath.ManhattanDistance{})
+	return gomath.ToPoint(vertexWrapper.Inner).DistanceTo(gomath.ToPoint(to), gomath.ManhattanDistance)
 }
 
 type AdditiveCostFunction struct {

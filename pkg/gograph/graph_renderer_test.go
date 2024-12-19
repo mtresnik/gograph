@@ -37,8 +37,8 @@ func testLiveGraphRenderer_RenderFrames(t *testing.T) {
 	random := rand.New(rand.NewSource(time.Now().UnixNano()))
 	startVertex := vertices[random.Intn(len(vertices))]
 	endVertex := vertices[random.Intn(len(vertices))]
-	distanceCheck := gomath.ManhattanDistance{}
-	for distanceCheck.Eval(startVertex, endVertex) < float64(size/2) {
+	distanceCheck := gomath.ManhattanDistance
+	for distanceCheck(startVertex, endVertex) < float64(size/2) {
 		startVertex = vertices[random.Intn(len(vertices))]
 		endVertex = vertices[random.Intn(len(vertices))]
 	}

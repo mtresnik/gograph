@@ -9,7 +9,6 @@ import (
 
 type Vertex interface {
 	GetValues() []float64
-	SetValues([]float64)
 	Size() int
 	X() float64
 	Y() float64
@@ -33,7 +32,7 @@ func GetEdge(from Vertex, to Vertex) Edge {
 		from:     from,
 		to:       to,
 		id:       -1,
-		distance: gomath.EuclideanDistance{}.Eval(from, to),
+		distance: gomath.EuclideanDistance(from, to),
 	}
 }
 
@@ -111,10 +110,6 @@ func (v *SimpleVertex) GetValues() []float64 {
 	return v.Spatial.GetValues()
 }
 
-func (v *SimpleVertex) SetValues(values []float64) {
-	v.Spatial.SetValues(values)
-}
-
 func (v *SimpleVertex) Size() int {
 	return v.Spatial.Size()
 }
@@ -176,10 +171,6 @@ func NewVertexWrapper(inner Vertex, costs map[string]CostEntry) *VertexWrapper {
 
 func (v *VertexWrapper) GetValues() []float64 {
 	return v.Inner.GetValues()
-}
-
-func (v *VertexWrapper) SetValues(newValues []float64) {
-	v.Inner.SetValues(newValues)
 }
 
 func (v *VertexWrapper) Size() int {

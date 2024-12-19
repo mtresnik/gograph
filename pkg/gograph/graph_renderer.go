@@ -290,7 +290,7 @@ func (g *LiveGraphRenderer) Update(response RoutingAlgorithmResponse) {
 	internalGraphRenderer.AddPoint(g.Request.Start, pointColor)
 	internalGraphRenderer.AddPoint(g.Request.Destination, pointColor)
 	img := internalGraphRenderer.Render()
-	paletted := ConvertImageToPaletted(img)
+	paletted := goutils.ConvertImageToPaletted(img)
 	g.Frames = append(g.Frames, paletted)
 }
 

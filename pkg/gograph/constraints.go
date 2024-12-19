@@ -72,7 +72,7 @@ func (b ShapeContainsConstraint) Check(currentVertex VertexWrapper, _ map[string
 	if b.DistanceFunction != nil {
 		distanceFunction = *b.DistanceFunction
 	} else {
-		distanceFunction = gomath.EuclideanDistance{}
+		distanceFunction = gomath.EuclideanDistance
 	}
 	return b.Shape.Contains(gomath.ToPoint(currentVertex.Inner), distanceFunction)
 }

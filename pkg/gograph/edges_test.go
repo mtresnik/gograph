@@ -12,7 +12,7 @@ func TestSimpleEdge_String(t *testing.T) {
 
 func TestSimpleEdge_Distance(t *testing.T) {
 	edge := NewEdge(gomath.Point{Values: []float64{0.0, 0.0}}, gomath.Point{Values: []float64{1.0, 1.0}})
-	distance := edge.Distance(gomath.ManhattanDistance{})
+	distance := edge.Distance(gomath.ManhattanDistance)
 	println(distance)
 
 	distance = edge.Distance()
@@ -29,5 +29,5 @@ func TestSimpleEdge_Split(t *testing.T) {
 func TestPolyEdge_String(t *testing.T) {
 	polyEdge := NewEdge(gomath.Point{Values: []float64{0.0, 0.0}}, gomath.Point{Values: []float64{0.5, 1.0}}, gomath.Point{Values: []float64{2.0, 2.0}})
 	println(polyEdge.String())
-	println(polyEdge.Distance(gomath.ManhattanDistance{}))
+	println(polyEdge.Distance(gomath.ManhattanDistance))
 }
