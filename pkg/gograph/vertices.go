@@ -106,6 +106,10 @@ func (v *SimpleVertex) DistanceTo(other SimpleVertex, distanceFunction ...gomath
 	return gomath.ToPoint(v.Spatial).DistanceTo(gomath.ToPoint(other.Spatial), distanceFunction...)
 }
 
+func (v *SimpleVertex) SetValues(values []float64) {
+	v.Spatial = gomath.NewPoint(values...)
+}
+
 func (v *SimpleVertex) GetValues() []float64 {
 	return v.Spatial.GetValues()
 }
