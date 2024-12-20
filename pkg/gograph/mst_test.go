@@ -10,12 +10,12 @@ import (
 
 func TestKruskalMST(t *testing.T) {
 	size := 35
-	randomPruneProvider := RandomPruneGraphProvider{BoundedGraphProvider{
-		BoundingBox: gomath.BoundingBox{10, 10, 20, 20},
-		Width:       size,
-		Height:      size,
-	}, 0.11}
-	graph := randomPruneProvider.Build()
+	provider := BoundedRandomGraphProvider{
+		BoundingBox:    gomath.BoundingBox{10, 10, 20, 20},
+		NumPoints:      size * 5,
+		NumConnections: 5,
+	}
+	graph := provider.Build()
 
 	start := time.Now().UnixMilli()
 	response := KruskalMST(MSTRequest{Graph: graph})
@@ -24,6 +24,12 @@ func TestKruskalMST(t *testing.T) {
 	newGraph := response.Graph
 
 	renderer := NewGraphRenderer(size*40, size*40)
+	//renderer.AddGraph(graph, color.RGBA{
+	//	R: 255,
+	//	G: 0,
+	//	B: 0,
+	//	A: 255,
+	//})
 	renderer.AddGraph(newGraph)
 	img := renderer.Render()
 	file, err := os.Create("TestKruskalMST.png")
@@ -36,12 +42,12 @@ func TestKruskalMST(t *testing.T) {
 
 func TestPrimsMST(t *testing.T) {
 	size := 35
-	randomPruneProvider := RandomPruneGraphProvider{BoundedGraphProvider{
-		BoundingBox: gomath.BoundingBox{10, 10, 20, 20},
-		Width:       size,
-		Height:      size,
-	}, 0.11}
-	graph := randomPruneProvider.Build()
+	provider := BoundedRandomGraphProvider{
+		BoundingBox:    gomath.BoundingBox{10, 10, 20, 20},
+		NumPoints:      size * 5,
+		NumConnections: 5,
+	}
+	graph := provider.Build()
 	start := time.Now().UnixMilli()
 	response := PrimsMST(MSTRequest{Graph: graph})
 	end := time.Now().UnixMilli()

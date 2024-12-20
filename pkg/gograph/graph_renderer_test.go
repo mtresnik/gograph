@@ -27,7 +27,7 @@ func TestGraphRenderer_Render(t *testing.T) {
 
 func testLiveGraphRenderer_RenderFrames(t *testing.T) {
 	size := 50
-	randomPruneProvider := RandomPruneGraphProvider{BoundedGraphProvider{
+	randomPruneProvider := RandomPruneGraphProvider{BoundedGridGraphProvider{
 		BoundingBox: gomath.BoundingBox{10, 10, 20, 20},
 		Width:       size,
 		Height:      size,
@@ -69,7 +69,7 @@ func testLiveGraphRenderer_RenderFrames(t *testing.T) {
 }
 
 func TestBoundedGraphProvider_UI(t *testing.T) {
-	provider := BoundedGraphProvider{
+	provider := BoundedGridGraphProvider{
 		BoundingBox: gomath.BoundingBox{10, 10, 20, 20},
 		Width:       40,
 		Height:      40,
@@ -88,7 +88,7 @@ func TestBoundedGraphProvider_UI(t *testing.T) {
 }
 
 func TestRandomGraphProvider_UI(t *testing.T) {
-	randomPruneProvider := RandomPruneGraphProvider{BoundedGraphProvider{
+	randomPruneProvider := RandomPruneGraphProvider{BoundedGridGraphProvider{
 		BoundingBox: gomath.BoundingBox{10, 10, 20, 20},
 		Width:       40,
 		Height:      40,

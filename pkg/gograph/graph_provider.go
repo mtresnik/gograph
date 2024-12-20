@@ -3,6 +3,7 @@ package gograph
 import (
 	"github.com/mtresnik/gomath/pkg/gomath"
 	"math/rand"
+	"sort"
 )
 
 type GraphProvider interface {
@@ -96,13 +97,13 @@ func (r RandomPruneGraphProvider) Build() Graph {
 	return graph
 }
 
-type BoundedGraphProvider struct {
+type BoundedGridGraphProvider struct {
 	BoundingBox gomath.BoundingBox
 	Width       int
 	Height      int
 }
 
-func (b BoundedGraphProvider) Build() Graph {
+func (b BoundedGridGraphProvider) Build() Graph {
 	lengthX := b.BoundingBox.MaxX - b.BoundingBox.MinX
 	lengthY := b.BoundingBox.MaxY - b.BoundingBox.MinY
 	dx := lengthX / float64(b.Width)
@@ -140,6 +141,39 @@ func (b BoundedGraphProvider) Build() Graph {
 	for _, row := range vertexMatrix {
 		for _, vertex := range row {
 			graph.AddVertex(vertex)
+		}
+	}
+	return graph
+}
+
+type BoundedRandomGraphProvider struct {
+	BoundingBox    gomath.BoundingBox
+	NumPoints      int
+	NumConnections int
+}
+
+func (b BoundedRandomGraphProvider) Build() Graph {
+	dx := b.BoundingBox.MaxX - b.BoundingBox.MinX
+	dy := b.BoundingBox.MaxY - b.BoundingBox.MinY
+	graph := NewSimpleGraph()
+	for i := 0; i < b.NumPoints; i++ {
+		vertex := NewSimpleVertex(gomath.Point{Values: []float64{rand.Float64()*dx + b.BoundingBox.MinX, rand.Float64()*dy + b.BoundingBox.MinY}}, make([]Edge, 0)...)
+		graph.AddVertex(&vertex)
+	}
+
+	allVertices := graph.GetVertices()
+	copiedVertices := make([]Vertex, len(allVertices))
+	copy(copiedVertices, allVertices)
+	for _, vertex := range graph.GetVertices() {
+		sort.Slice(copiedVertices, func(i, j int) bool {
+			return gomath.EuclideanDistance(copiedVertices[i], vertex) < gomath.EuclideanDistance(copiedVertices[j], vertex)
+		})
+		for i := 1; i < b.NumConnections+1; i++ {
+			if vertex.Hash() != copiedVertices[i].Hash() {
+				edge := NewSimpleEdge(vertex, copiedVertices[i], -1)
+				vertex.AddEdge(edge)
+				graph.AddEdge(edge)
+			}
 		}
 	}
 	return graph

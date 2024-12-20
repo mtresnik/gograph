@@ -12,7 +12,7 @@ func TestMazeToGraphProvider_Build(t *testing.T) {
 }
 
 func TestBoundedGraphProvider_Build(t *testing.T) {
-	provider := BoundedGraphProvider{
+	provider := BoundedGridGraphProvider{
 		BoundingBox: gomath.BoundingBox{10, 10, 20, 20},
 		Width:       10,
 		Height:      10,
