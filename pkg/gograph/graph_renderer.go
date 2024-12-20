@@ -22,6 +22,7 @@ type GraphRenderer struct {
 	Edges         map[int64]Edge
 	Colors        map[int64]color.RGBA
 	Paths         map[int64]Path
+	Background    *image.RGBA
 	bounds        gomath.BoundingBox
 	Width         int
 	Height        int
@@ -181,8 +182,11 @@ func (g *GraphRenderer) Render() *image.RGBA {
 		return nil
 	}
 	g.padBounds()
-	img := image.NewRGBA(image.Rect(0, 0, g.Width, g.Height))
-	goutils.FillRectangle(img, 0, 0, g.Width, g.Height, color.White)
+	img := g.Background
+	if img == nil {
+		img = image.NewRGBA(image.Rect(0, 0, g.Width, g.Height))
+		goutils.FillRectangle(img, 0, 0, g.Width, g.Height, color.White)
+	}
 	for hash, graph := range g.Graphs {
 		graphColor, ok := g.Colors[hash]
 		if !ok {
@@ -225,28 +229,35 @@ func (g *GraphRenderer) Render() *image.RGBA {
 }
 
 type LiveGraphRenderer struct {
-	Graph         Graph
-	Request       RoutingAlgorithmRequest
-	Frames        []*image.Paletted
-	Width         int
-	Height        int
-	Padding       int
-	lineThickness int
-	pointRadius   int
-	delay         int
+	Graph               Graph
+	Request             RoutingAlgorithmRequest
+	Frames              []*image.Paletted
+	BackgroundGenerator *func(time float64) *image.RGBA
+	Width               int
+	Height              int
+	Padding             int
+	RenderVisited       bool
+	lineThickness       int
+	pointRadius         int
+	delay               int
 }
 
-func NewLiveGraphRenderer(graph Graph, request RoutingAlgorithmRequest, width, height int) *LiveGraphRenderer {
+func NewLiveGraphRenderer(graph Graph, request RoutingAlgorithmRequest, width, height int, backgroundRenderer ...*func(time float64) *image.RGBA) *LiveGraphRenderer {
+	var backgroundGenerator *func(time float64) *image.RGBA = nil
+	if len(backgroundRenderer) > 0 {
+		backgroundGenerator = backgroundRenderer[0]
+	}
 	return &LiveGraphRenderer{
-		Graph:         graph,
-		Request:       request,
-		Frames:        make([]*image.Paletted, 0),
-		Width:         width,
-		Height:        height,
-		Padding:       50,
-		lineThickness: 5,
-		pointRadius:   10,
-		delay:         10,
+		Graph:               graph,
+		Request:             request,
+		Frames:              make([]*image.Paletted, 0),
+		BackgroundGenerator: backgroundGenerator,
+		Width:               width,
+		Height:              height,
+		Padding:             50,
+		lineThickness:       5,
+		pointRadius:         10,
+		delay:               10,
 	}
 }
 
@@ -267,19 +278,42 @@ func (g *LiveGraphRenderer) Update(response RoutingAlgorithmResponse) {
 		pointMap[hash] = point
 		colorMap[hash] = pointColor
 	}
-	for _, vertex := range g.Graph.GetVertices() {
-		hash := vertex.Hash()
-		_, ok := response.Visited[hash]
-		if ok {
-			colorMap[hash] = visitedColor
-			pointMap[hash] = vertex
+	if g.RenderVisited {
+		for _, vertex := range g.Graph.GetVertices() {
+			hash := vertex.Hash()
+			_, ok := response.Visited[hash]
+			if ok {
+				colorMap[hash] = visitedColor
+				pointMap[hash] = vertex
+			}
 		}
 	}
+
+	costFunctions := map[string]CostFunction{COST_TYPE_DISTANCE: EuclideanDistanceCostFunction{}}
+	if g.Request.CostFunctions != nil {
+		costFunctions = *g.Request.CostFunctions
+	}
+
+	var backgroundImg *image.RGBA
+	_, timeOk := costFunctions[COST_TYPE_TIME]
+	if timeOk && g.BackgroundGenerator != nil {
+		timeEntry, ok := GetPathCost(response.Path, &costFunctions)[COST_TYPE_TIME]
+		time := 0.0
+		if ok {
+			time = timeEntry.Total
+		}
+		backgroundImg = (*g.BackgroundGenerator)(time)
+	} else {
+		backgroundImg = image.NewRGBA(image.Rect(0, 0, g.Width, g.Height))
+		goutils.FillRectangle(backgroundImg, 0, 0, g.Width, g.Height, color.White)
+	}
+
 	internalGraphRenderer := GraphRenderer{
 		Graphs:        map[int64]Graph{},
 		Points:        pointMap,
 		Colors:        colorMap,
 		Paths:         map[int64]Path{},
+		Background:    backgroundImg,
 		bounds:        gomath.BoundingBox{},
 		Width:         g.Width,
 		Height:        g.Height,
@@ -288,9 +322,9 @@ func (g *LiveGraphRenderer) Update(response RoutingAlgorithmResponse) {
 		pointRadius:   g.pointRadius,
 	}
 	internalGraphRenderer.AddGraph(g.Graph)
-	internalGraphRenderer.AddPath(response.Path)
-	internalGraphRenderer.AddPoint(g.Request.Start, pointColor)
-	internalGraphRenderer.AddPoint(g.Request.Destination, pointColor)
+	internalGraphRenderer.AddPath(response.Path, goutils.COLOR_WHITE)
+	internalGraphRenderer.AddPoint(g.Request.Start, goutils.COLOR_PURPLE)
+	internalGraphRenderer.AddPoint(g.Request.Destination, goutils.COLOR_PURPLE)
 	img := internalGraphRenderer.Render()
 	paletted := goutils.ConvertImageToPaletted(img)
 	g.Frames = append(g.Frames, paletted)

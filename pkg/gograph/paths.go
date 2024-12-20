@@ -11,6 +11,7 @@ type Path interface {
 	Hash() int64
 	Id() int64
 	Wrap() Path
+	Distance(distanceFunction ...gomath.DistanceFunction) float64
 }
 
 func GetPathCost(path Path, pCostFunctions *map[string]CostFunction) map[string]CostEntry {
@@ -53,6 +54,10 @@ func NewSimplePath(edges []Edge) *SimplePath {
 	return &SimplePath{edges, -1, -1}
 }
 
+func (p *SimplePath) NumVertices() int {
+	return len(p.Edges) + 1
+}
+
 func (p *SimplePath) Length() int {
 	return len(p.Edges)
 }
@@ -91,4 +96,8 @@ func (p *SimplePath) Wrap() Path {
 	}
 	p.Edges = append(p.Edges, NewEdge(p.Edges[len(p.Edges)-1].To(), p.Edges[0].From()))
 	return p
+}
+
+func (p *SimplePath) Distance(distanceFunction ...gomath.DistanceFunction) float64 {
+	return GetPathDistance(p, distanceFunction...)
 }

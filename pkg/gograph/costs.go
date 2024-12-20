@@ -8,6 +8,7 @@ import (
 const (
 	COST_TYPE_DISTANCE = "distance"
 	COST_TYPE_TIME     = "time"
+	COST_TYPE_SPEED    = "speed"
 )
 
 type CostFunction interface {
@@ -18,6 +19,8 @@ func GenerateInitialCosts(pCostFunctions *map[string]CostFunction) (map[string]C
 	var costFunctions map[string]CostFunction
 	if pCostFunctions == nil {
 		costFunctions = map[string]CostFunction{COST_TYPE_DISTANCE: EuclideanDistanceCostFunction{}}
+	} else {
+		costFunctions = *pCostFunctions
 	}
 	initialCosts := map[string]CostEntry{}
 	for key, _ := range costFunctions {
@@ -84,7 +87,7 @@ func GenerateCostDifference(one, two map[string]CostEntry) map[string]CostEntry 
 func GetCostOrEvaluate(currWrapper *VertexWrapper, toVertex Vertex, key string, costFunctions map[string]CostFunction) float64 {
 	edge := GetEdge(currWrapper.Inner, toVertex)
 	if edge == nil {
-		return 0.0
+		return costFunctions[key].Eval(currWrapper, toVertex)
 	}
 	costMap := edge.Cost()
 	if costMap != nil {
@@ -233,4 +236,21 @@ var MultiplicativeCostCombiner CostCombiner = func(costs map[string]CostEntry) C
 		total.Total *= cost.Total
 	}
 	return total
+}
+
+type InitialCostFunction struct {
+	Default float64
+	Type    string
+}
+
+func (f InitialCostFunction) Eval(vertexWrapper *VertexWrapper, to gomath.Spatial) float64 {
+	edgeCost := GetEdge(vertexWrapper.Inner, ToVertex(to)).Cost()
+	if edgeCost == nil {
+		return f.Default
+	}
+	retValue, ok := (*edgeCost)[f.Type]
+	if ok {
+		return retValue
+	}
+	return f.Default
 }

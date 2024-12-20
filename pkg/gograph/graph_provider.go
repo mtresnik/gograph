@@ -150,6 +150,7 @@ type BoundedRandomGraphProvider struct {
 	BoundingBox    gomath.BoundingBox
 	NumPoints      int
 	NumConnections int
+	CostFunctions  *map[string]gomath.DistanceFunction
 }
 
 func (b BoundedRandomGraphProvider) Build() Graph {
@@ -161,6 +162,11 @@ func (b BoundedRandomGraphProvider) Build() Graph {
 		graph.AddVertex(&vertex)
 	}
 
+	costFunctions := map[string]gomath.DistanceFunction{COST_TYPE_DISTANCE: gomath.EuclideanDistance}
+	if b.CostFunctions != nil {
+		costFunctions = *b.CostFunctions
+	}
+
 	allVertices := graph.GetVertices()
 	copiedVertices := make([]Vertex, len(allVertices))
 	copy(copiedVertices, allVertices)
@@ -170,11 +176,26 @@ func (b BoundedRandomGraphProvider) Build() Graph {
 		})
 		for i := 1; i < b.NumConnections+1; i++ {
 			if vertex.Hash() != copiedVertices[i].Hash() {
-				edge := NewSimpleEdge(vertex, copiedVertices[i], -1)
+				cost := map[string]float64{}
+				for key, function := range costFunctions {
+					cost[key] = function(vertex, copiedVertices[i])
+				}
+				edge := NewSimpleEdge(vertex, copiedVertices[i], -1, &cost)
 				vertex.AddEdge(edge)
+				copiedVertices[i].AddEdge(edge.Reverse())
 				graph.AddEdge(edge)
+				graph.AddEdge(edge.Reverse())
 			}
 		}
+	}
+	toRemove := make([]Vertex, 0)
+	for _, vertex := range graph.GetVertices() {
+		if len(vertex.GetEdges()) == 0 {
+			toRemove = append(toRemove, vertex)
+		}
+	}
+	for _, vertex := range toRemove {
+		graph.RemoveVertex(vertex)
 	}
 	return graph
 }

@@ -130,8 +130,12 @@ type SimpleEdge struct {
 	cost     *map[string]float64
 }
 
-func NewSimpleEdge(from gomath.Spatial, to gomath.Spatial, id int64) SimpleEdge {
-	return SimpleEdge{from, to, id, -1.0, -1, nil}
+func NewSimpleEdge(from gomath.Spatial, to gomath.Spatial, id int64, cost ...*map[string]float64) SimpleEdge {
+	var tempCost *map[string]float64 = nil
+	if len(cost) > 0 {
+		tempCost = cost[0]
+	}
+	return SimpleEdge{from, to, id, -1.0, -1, tempCost}
 }
 
 func (e SimpleEdge) From() gomath.Spatial {
