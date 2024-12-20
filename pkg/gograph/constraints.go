@@ -2,24 +2,24 @@ package gograph
 
 import "github.com/mtresnik/gomath/pkg/gomath"
 
-type Constraint interface {
+type RoutingConstraint interface {
 	Check(currentVertex *VertexWrapper, nextCost map[string]CostEntry) bool
 }
 
-type NegationConstraint struct {
-	Inner Constraint
+type NegationRoutingConstraint struct {
+	Inner RoutingConstraint
 }
 
-func (b NegationConstraint) Check(currentVertex *VertexWrapper, nextCost map[string]CostEntry) bool {
+func (b NegationRoutingConstraint) Check(currentVertex *VertexWrapper, nextCost map[string]CostEntry) bool {
 	return !b.Inner.Check(currentVertex, nextCost)
 }
 
-type ForAllConstraint struct {
+type ForAllRoutingConstraint struct {
 	Key         string
-	Constraints []Constraint
+	Constraints []RoutingConstraint
 }
 
-func CheckAllConstraints(currentVertex *VertexWrapper, nextCost CostEntry, key string, constraintMap map[string][]Constraint) bool {
+func CheckAllRoutingConstraints(currentVertex *VertexWrapper, nextCost CostEntry, key string, constraintMap map[string][]RoutingConstraint) bool {
 	cost := map[string]CostEntry{key: nextCost}
 	constraints, ok := constraintMap[key]
 	if !ok {
@@ -33,17 +33,17 @@ func CheckAllConstraints(currentVertex *VertexWrapper, nextCost CostEntry, key s
 	return true
 }
 
-func (b ForAllConstraint) Check(currentVertex *VertexWrapper, nextCost map[string]CostEntry) bool {
-	constraintMap := map[string][]Constraint{b.Key: b.Constraints}
-	return CheckAllConstraints(currentVertex, nextCost[b.Key], b.Key, constraintMap)
+func (b ForAllRoutingConstraint) Check(currentVertex *VertexWrapper, nextCost map[string]CostEntry) bool {
+	constraintMap := map[string][]RoutingConstraint{b.Key: b.Constraints}
+	return CheckAllRoutingConstraints(currentVertex, nextCost[b.Key], b.Key, constraintMap)
 }
 
-type ForEachConstraint struct {
+type ForEachRoutingConstraint struct {
 	Key         string
-	Constraints []Constraint
+	Constraints []RoutingConstraint
 }
 
-func CheckAnyConstraints(currentVertex *VertexWrapper, nextCost CostEntry, key string, constraintMap map[string][]Constraint) bool {
+func CheckAnyRoutingConstraints(currentVertex *VertexWrapper, nextCost CostEntry, key string, constraintMap map[string][]RoutingConstraint) bool {
 	cost := map[string]CostEntry{key: nextCost}
 	constraints, ok := constraintMap[key]
 	if !ok {
@@ -57,17 +57,17 @@ func CheckAnyConstraints(currentVertex *VertexWrapper, nextCost CostEntry, key s
 	return false
 }
 
-func (b ForEachConstraint) Check(currentVertex *VertexWrapper, nextCost map[string]CostEntry) bool {
-	constraintMap := map[string][]Constraint{b.Key: b.Constraints}
-	return CheckAnyConstraints(currentVertex, nextCost[b.Key], b.Key, constraintMap)
+func (b ForEachRoutingConstraint) Check(currentVertex *VertexWrapper, nextCost map[string]CostEntry) bool {
+	constraintMap := map[string][]RoutingConstraint{b.Key: b.Constraints}
+	return CheckAnyRoutingConstraints(currentVertex, nextCost[b.Key], b.Key, constraintMap)
 }
 
-type ShapeContainsConstraint struct {
+type ShapeContainsRoutingConstraint struct {
 	Shape            gomath.Shape
 	DistanceFunction *gomath.DistanceFunction
 }
 
-func (b ShapeContainsConstraint) Check(currentVertex VertexWrapper, _ map[string]CostEntry) bool {
+func (b ShapeContainsRoutingConstraint) Check(currentVertex VertexWrapper, _ map[string]CostEntry) bool {
 	var distanceFunction gomath.DistanceFunction
 	if b.DistanceFunction != nil {
 		distanceFunction = *b.DistanceFunction
@@ -77,11 +77,11 @@ func (b ShapeContainsConstraint) Check(currentVertex VertexWrapper, _ map[string
 	return b.Shape.Contains(gomath.ToPoint(currentVertex.Inner), distanceFunction)
 }
 
-type MaximumCostConstraint struct {
+type MaximumCostRoutingConstraint struct {
 	Key     string
 	Maximum float64
 }
 
-func (b MaximumCostConstraint) Check(_ VertexWrapper, nextCost map[string]CostEntry) bool {
+func (b MaximumCostRoutingConstraint) Check(_ VertexWrapper, nextCost map[string]CostEntry) bool {
 	return nextCost[b.Key].Total <= b.Maximum && nextCost[b.Key].Current <= b.Maximum
 }

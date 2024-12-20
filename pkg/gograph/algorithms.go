@@ -10,7 +10,7 @@ import (
 type RoutingAlgorithmRequest struct {
 	Start             Vertex
 	Destination       Vertex
-	Constraints       *map[string][]Constraint
+	Constraints       *map[string][]RoutingConstraint
 	MultiCostFunction *MultiCostFunction
 	CostFunctions     *map[string]CostFunction
 	CostCombiner      *CostCombiner
@@ -116,7 +116,7 @@ var BFS RoutingAlgorithm = func(parameters RoutingAlgorithmRequest) RoutingAlgor
 						_, constraintsExist := (*constraints)[key]
 						currCost, costExist := nextCosts[key]
 						if constraintsExist && costExist {
-							pass = CheckAllConstraints(curr, currCost, key, *constraints)
+							pass = CheckAllRoutingConstraints(curr, currCost, key, *constraints)
 							if !pass {
 								break
 							}
@@ -279,7 +279,7 @@ var DFS RoutingAlgorithm = func(parameters RoutingAlgorithmRequest) RoutingAlgor
 					_, constraintsExist := (*constraints)[key]
 					currCost, costExist := nextCosts[key]
 					if constraintsExist && costExist {
-						pass = CheckAllConstraints(PathStateToVertexWrapper(curr), currCost, key, *constraints)
+						pass = CheckAllRoutingConstraints(PathStateToVertexWrapper(curr), currCost, key, *constraints)
 						if !pass {
 							break
 						}
@@ -414,7 +414,7 @@ var AStar RoutingAlgorithm = func(parameters RoutingAlgorithmRequest) RoutingAlg
 							_, constraintsExist := (*constraints)[key]
 							currCost, costExist := nextCosts[key]
 							if constraintsExist && costExist {
-								pass = CheckAllConstraints(curr, currCost, key, *constraints)
+								pass = CheckAllRoutingConstraints(curr, currCost, key, *constraints)
 								if !pass {
 									break
 								}
