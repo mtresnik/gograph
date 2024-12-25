@@ -11,7 +11,7 @@
 
 # UI output
 Test*.png
-*.gif
+Test*.gif
 
 # Test binary, built with `go test -c`
 *.test
